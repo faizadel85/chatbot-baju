@@ -11,11 +11,11 @@ const claude = new Anthropic({
 
 const products = [
   {
-    nama: "Baju Kurung Melissa",
-    harga: 86,
-    saiz: ["XS", "S", "M", "L", "XL", "XXL","3XL","4XL"],
-    stok: { XS: 3, S: 10, M: 15, L: 8, XL: 5, XXL: 2, 3XL: 2, 4XL: 1 },
-    warna: ["Teal Blue", "Army Green", "Charcoal Grey","Deep Plum","Navy Blue","Black","Rich Brown","Mauve"]
+    nama: "Baju Kurung Moden Bella",
+    harga: 89.90,
+    saiz: ["XS", "S", "M", "L", "XL", "XXL"],
+    stok: { XS: 3, S: 10, M: 15, L: 8, XL: 5, XXL: 2 },
+    warna: ["Putih", "Biru Muda", "Hijau Mint"]
   },
   {
     nama: "Blouse Raya Sofea",
