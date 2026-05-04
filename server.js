@@ -6,8 +6,7 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 
 const claude = new Anthropic({ 
-  apiKey: "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" 
-});
+  apiKey: process.env.CLAUDE_API_KEY
 
 // Data produk kedai baju anda
 const products = [
