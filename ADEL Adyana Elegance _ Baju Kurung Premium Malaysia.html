@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADEL Adyana Elegance | Baju Kurung Premium Malaysia</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #C9A96E;
+    --gold-light: #E8D5A3;
+    --dark: #1a1410;
+    --brown: #3d2b1f;
+    --cream: #F9F4EC;
+    --text: #2c1f14;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Jost', sans-serif;
+    background: var(--cream);
+    color: var(--text);
+    overflow-x: hidden;
+  }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh;
+    background: linear-gradient(160deg, #1a1410 0%, #3d2b1f 50%, #1a1410 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, rgba(201,169,110,0.15) 0%, transparent 70%);
+  }
+
+  .hero-ornament {
+    width: 120px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    margin: 0 auto 30px;
+    animation: fadeIn 1s ease forwards;
+  }
+
+  .hero-brand {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(52px, 10vw, 96px);
+    font-weight: 300;
+    color: var(--gold-light);
+    letter-spacing: 8px;
+    line-height: 1;
+    animation: fadeUp 1s ease 0.2s both;
+  }
+
+  .hero-sub {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(14px, 3vw, 18px);
+    color: var(--gold);
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    margin: 16px 0 40px;
+    animation: fadeUp 1s ease 0.4s both;
+  }
+
+  .hero-tagline {
+    font-size: 15px;
+    color: rgba(249,244,236,0.6);
+    letter-spacing: 2px;
+    font-weight: 300;
+    animation: fadeUp 1s ease 0.6s both;
+    margin-bottom: 50px;
+  }
+
+  .hero-btn {
+    display: inline-block;
+    padding: 14px 40px;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    text-decoration: none;
+    letter-spacing: 3px;
+    font-size: 12px;
+    text-transform: uppercase;
+    font-family: 'Jost', sans-serif;
+    transition: all 0.3s ease;
+    animation: fadeUp 1s ease 0.8s both;
+  }
+
+  .hero-btn:hover {
+    background: var(--gold);
+    color: var(--dark);
+  }
+
+  /* NAV */
+  nav {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    padding: 20px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 100;
+    background: linear-gradient(to bottom, rgba(26,20,16,0.9), transparent);
+  }
+
+  .nav-logo {
+    font-family: 'Cormorant Garamond', serif;
+    color: var(--gold);
+    font-size: 20px;
+    letter-spacing: 3px;
+    text-decoration: none;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 30px;
+    list-style: none;
+  }
+
+  .nav-links a {
+    color: rgba(249,244,236,0.7);
+    text-decoration: none;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    transition: color 0.3s;
+  }
+
+  .nav-links a:hover { color: var(--gold); }
+
+  /* SECTION */
+  section {
+    padding: 100px 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(36px, 6vw, 56px);
+    font-weight: 300;
+    line-height: 1.2;
+    color: var(--brown);
+    margin-bottom: 24px;
+  }
+
+  .section-divider {
+    width: 60px;
+    height: 1px;
+    background: var(--gold);
+    margin-bottom: 30px;
+  }
+
+  /* ABOUT */
+  .about-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+  }
+
+  .about-text p {
+    font-size: 15px;
+    line-height: 1.9;
+    color: #5a4030;
+    margin-bottom: 20px;
+    font-weight: 300;
+  }
+
+  .about-visual {
+    background: linear-gradient(135deg, #3d2b1f, #1a1410);
+    height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .about-visual::before {
+    content: 'ADEL';
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 120px;
+    color: rgba(201,169,110,0.1);
+    font-weight: 300;
+    letter-spacing: 10px;
+  }
+
+  .about-visual-text {
+    position: absolute;
+    text-align: center;
+    color: var(--gold-light);
+  }
+
+  .about-visual-text span {
+    display: block;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px;
+    font-style: italic;
+    color: var(--gold);
+  }
+
+  /* PRODUK */
+  .produk-bg {
+    background: linear-gradient(160deg, #1a1410, #2d1f15);
+    padding: 100px 20px;
+  }
+
+  .produk-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .produk-inner .section-title { color: var(--gold-light); }
+  .produk-inner .section-label { color: var(--gold); }
+
+  .produk-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2px;
+    margin-top: 50px;
+  }
+
+  .produk-card {
+    background: rgba(201,169,110,0.05);
+    border: 1px solid rgba(201,169,110,0.15);
+    padding: 40px 30px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .produk-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px;
+    height: 0;
+    background: var(--gold);
+    transition: height 0.3s ease;
+  }
+
+  .produk-card:hover::before { height: 100%; }
+  .produk-card:hover { background: rgba(201,169,110,0.1); }
+
+  .produk-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 48px;
+    color: rgba(201,169,110,0.2);
+    font-weight: 300;
+    margin-bottom: 16px;
+  }
+
+  .produk-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px;
+    color: var(--gold-light);
+    margin-bottom: 12px;
+    font-weight: 400;
+  }
+
+  .produk-price {
+    font-size: 13px;
+    color: var(--gold);
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+  }
+
+  .produk-desc {
+    font-size: 13px;
+    color: rgba(249,244,236,0.5);
+    line-height: 1.8;
+    font-weight: 300;
+  }
+
+  .produk-sizes {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .size-tag {
+    font-size: 10px;
+    letter-spacing: 1px;
+    border: 1px solid rgba(201,169,110,0.3);
+    color: rgba(201,169,110,0.6);
+    padding: 3px 8px;
+  }
+
+  /* CARA ORDER */
+  .order-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 40px;
+    margin-top: 50px;
+  }
+
+  .step {
+    text-align: center;
+    padding: 30px 20px;
+    border-top: 1px solid rgba(201,169,110,0.3);
+  }
+
+  .step-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 56px;
+    color: var(--gold);
+    opacity: 0.4;
+    font-weight: 300;
+    line-height: 1;
+    margin-bottom: 16px;
+  }
+
+  .step-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    color: var(--brown);
+    margin-bottom: 10px;
+  }
+
+  .step-desc {
+    font-size: 13px;
+    color: #7a5a45;
+    line-height: 1.8;
+    font-weight: 300;
+  }
+
+  /* HUBUNGI */
+  .hubungi-bg {
+    background: linear-gradient(160deg, #1a1410, #2d1f15);
+    padding: 100px 20px;
+    text-align: center;
+  }
+
+  .hubungi-inner { max-width: 600px; margin: 0 auto; }
+  .hubungi-inner .section-title { color: var(--gold-light); }
+
+  .hubungi-p {
+    color: rgba(249,244,236,0.6);
+    font-size: 15px;
+    line-height: 1.8;
+    margin-bottom: 40px;
+    font-weight: 300;
+  }
+
+  .contact-items {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+
+  .contact-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: var(--gold-light);
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+
+  .contact-label {
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    min-width: 80px;
+    text-align: right;
+  }
+
+  .wa-btn {
+    display: inline-block;
+    padding: 16px 50px;
+    background: var(--gold);
+    color: var(--dark);
+    text-decoration: none;
+    letter-spacing: 3px;
+    font-size: 12px;
+    text-transform: uppercase;
+    font-family: 'Jost', sans-serif;
+    font-weight: 500;
+    transition: all 0.3s ease;
+  }
+
+  .wa-btn:hover {
+    background: var(--gold-light);
+    transform: translateY(-2px);
+  }
+
+  /* FOOTER */
+  footer {
+    background: #0f0c09;
+    padding: 40px 20px;
+    text-align: center;
+  }
+
+  .footer-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    color: var(--gold);
+    letter-spacing: 6px;
+    margin-bottom: 16px;
+  }
+
+  .footer-text {
+    font-size: 11px;
+    color: rgba(249,244,236,0.3);
+    letter-spacing: 2px;
+  }
+
+  /* PRIVACY */
+  .privacy-bg {
+    background: var(--cream);
+    padding: 60px 20px;
+    border-top: 1px solid rgba(201,169,110,0.2);
+  }
+
+  .privacy-inner {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .privacy-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 32px;
+    color: var(--brown);
+    margin-bottom: 20px;
+  }
+
+  .privacy-text {
+    font-size: 13px;
+    line-height: 1.9;
+    color: #7a5a45;
+    font-weight: 300;
+    margin-bottom: 16px;
+  }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .about-grid { grid-template-columns: 1fr; gap: 40px; }
+    .nav-links { display: none; }
+    nav { padding: 16px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="#">ADEL</a>
+  <ul class="nav-links">
+    <li><a href="#tentang">Tentang Kami</a></li>
+    <li><a href="#produk">Produk</a></li>
+    <li><a href="#order">Cara Order</a></li>
+    <li><a href="#hubungi">Hubungi</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-ornament"></div>
+  <div class="hero-brand">ADEL</div>
+  <div class="hero-sub">Adyana Elegance</div>
+  <div class="hero-tagline">Koleksi Baju Kurung Premium Malaysia</div>
+  <a href="#produk" class="hero-btn">Lihat Koleksi</a>
+</div>
+
+<!-- TENTANG KAMI -->
+<section id="tentang">
+  <div class="about-grid">
+    <div class="about-text">
+      <div class="section-label">Tentang Kami</div>
+      <h2 class="section-title">Keanggunan Yang Abadi</h2>
+      <div class="section-divider"></div>
+      <p>ADEL Adyana Elegance menghadirkan koleksi baju kurung premium yang menggabungkan rekaan moden dengan sentuhan tradisional Malaysia yang memukau.</p>
+      <p>Setiap helai kain dipilih dengan teliti, setiap jahitan dilakukan dengan penuh dedikasi — untuk memastikan anda tampil anggun dan yakin di setiap majlis.</p>
+      <p>Kami menyediakan saiz dari XS hingga 4XL kerana keanggunan adalah hak setiap wanita, tanpa mengira bentuk badan.</p>
+    </div>
+    <div class="about-visual">
+      <div class="about-visual-text">
+        <span>Elegance</span>
+        untuk semua
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRODUK -->
+<div class="produk-bg" id="produk">
+  <div class="produk-inner">
+    <div class="section-label">Koleksi Kami</div>
+    <h2 class="section-title">Pilihan Premium</h2>
+    <div class="section-divider"></div>
+
+    <div class="produk-grid">
+      <div class="produk-card">
+        <div class="produk-num">01</div>
+        <div class="produk-name">Baju Kurung Neesya</div>
+        <div class="produk-price">RM 103 — RM 113</div>
+        <div class="produk-desc">Rekaan eksklusif dengan kain berkualiti tinggi. Sesuai untuk majlis rasmi, pejabat dan pelbagai majlis istimewa.</div>
+        <div class="produk-sizes">
+          <span class="size-tag">XS</span>
+          <span class="size-tag">S</span>
+          <span class="size-tag">M</span>
+          <span class="size-tag">L</span>
+          <span class="size-tag">XL</span>
+          <span class="size-tag">2XL</span>
+          <span class="size-tag">3XL +RM10</span>
+          <span class="size-tag">4XL +RM10</span>
+        </div>
+      </div>
+
+      <div class="produk-card">
+        <div class="produk-num">02</div>
+        <div class="produk-name">Pelbagai Warna</div>
+        <div class="produk-price">6 Pilihan Warna Eksklusif</div>
+        <div class="produk-desc">Navy Blue, Black, Dark Brown, Denim Blue, Match Green dan Nudebrown — setiap warna dipilih untuk melengkapi pelbagai gaya.</div>
+        <div class="produk-sizes">
+          <span class="size-tag">Navy Blue</span>
+          <span class="size-tag">Black</span>
+          <span class="size-tag">Dark Brown</span>
+          <span class="size-tag">Denim Blue</span>
+          <span class="size-tag">Match Green</span>
+          <span class="size-tag">Nudebrown</span>
+        </div>
+      </div>
+
+      <div class="produk-card">
+        <div class="produk-num">03</div>
+        <div class="produk-name">Panduan Saiz</div>
+        <div class="produk-price">Saiz XS — 4XL</div>
+        <div class="produk-desc">Kami menyediakan carta saiz lengkap. Hubungi kami untuk bantuan memilih saiz yang paling sesuai berdasarkan ukuran badan anda.</div>
+        <div class="produk-sizes">
+          <span class="size-tag">Ukuran Dada</span>
+          <span class="size-tag">Berat Badan</span>
+          <span class="size-tag">Lebar Bahu</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CARA ORDER -->
+<section id="order">
+  <div class="section-label">Mudah & Selamat</div>
+  <h2 class="section-title">Cara Membuat Pesanan</h2>
+  <div class="section-divider"></div>
+
+  <div class="order-steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-title">Hubungi Kami</div>
+      <div class="step-desc">WhatsApp kami untuk bertanya tentang produk, saiz dan stok terkini.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-title">Pilih Produk</div>
+      <div class="step-desc">Pilih warna dan saiz yang anda inginkan. Kami bantu cadangkan saiz yang sesuai.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-title">Buat Pembayaran</div>
+      <div class="step-desc">Pembayaran melalui bank transfer atau FPX. Selamat dan mudah.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <div class="step-title">Penghantaran</div>
+      <div class="step-desc">Postage Semenanjung RM8, Sabah/Sarawak RM12. Tracking number dihantar selepas pos.</div>
+    </div>
+  </div>
+</section>
+
+<!-- HUBUNGI KAMI -->
+<div class="hubungi-bg" id="hubungi">
+  <div class="hubungi-inner">
+    <div class="section-label">Hubungi Kami</div>
+    <h2 class="section-title">Kami Sedia Membantu</h2>
+    <div class="section-divider" style="margin: 0 auto 30px;"></div>
+    <p class="hubungi-p">Ada pertanyaan tentang produk, saiz atau pesanan? Hubungi kami melalui WhatsApp dan kami akan membalas secepat mungkin.</p>
+
+    <div class="contact-items">
+      <div class="contact-item">
+        <span class="contact-label">WhatsApp</span>
+        <span>+60 10-949 5173</span>
+      </div>
+      <div class="contact-item">
+        <span class="contact-label">Facebook</span>
+        <span>facebook.com/adeladyana</span>
+      </div>
+      <div class="contact-item">
+        <span class="contact-label">Waktu</span>
+        <span>Isnin — Sabtu, 9am — 6pm</span>
+      </div>
+    </div>
+
+    <a href="https://wa.me/60109495173" class="wa-btn">WhatsApp Sekarang</a>
+  </div>
+</div>
+
+<!-- PRIVACY POLICY -->
+<div class="privacy-bg" id="privacy">
+  <div class="privacy-inner">
+    <h3 class="privacy-title">Dasar Privasi</h3>
+    <div class="section-divider"></div>
+    <p class="privacy-text"><strong>Pengumpulan Maklumat:</strong> ADEL Adyana Elegance mengumpul maklumat peribadi seperti nama, alamat dan nombor telefon hanya untuk tujuan memproses pesanan pelanggan.</p>
+    <p class="privacy-text"><strong>Penggunaan Maklumat:</strong> Maklumat yang dikumpul digunakan semata-mata untuk memproses pesanan, penghantaran produk dan komunikasi berkaitan pesanan anda.</p>
+    <p class="privacy-text"><strong>Perlindungan Data:</strong> Kami tidak akan berkongsi maklumat peribadi anda dengan pihak ketiga tanpa kebenaran anda, kecuali yang diperlukan untuk memproses pesanan (contoh: syarikat penghantaran).</p>
+    <p class="privacy-text"><strong>Keselamatan:</strong> Kami mengambil langkah yang sewajarnya untuk melindungi maklumat peribadi anda daripada akses tanpa kebenaran.</p>
+    <p class="privacy-text"><strong>Hubungi Kami:</strong> Jika anda mempunyai sebarang pertanyaan berkenaan dasar privasi kami, sila hubungi kami melalui WhatsApp di +60 10-949 5173.</p>
+    <p class="privacy-text" style="margin-top: 20px; font-size: 11px; opacity: 0.6;">Dasar privasi ini berkuat kuasa mulai 2024. ADEL Adyana Elegance berhak untuk mengemas kini dasar ini dari semasa ke semasa.</p>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">ADEL</div>
+  <p class="footer-text">© 2024 ADEL Adyana Elegance · Semua Hak Terpelihara</p>
+</footer>
+
+</body>
+</html>
