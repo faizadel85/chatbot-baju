@@ -10,34 +10,34 @@ const VERIFY_TOKEN = "chatbot-baju-token";
 const SHEET_ID = "1lz5K8te2CihyjBcHht4FH4j21Sir1EzNwapGlIQfvb8";
 const sesi = {};
 
-async function getInventory() {
+async function getSheetData(sheetName) {
   try {
-    var url = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?tqx=out:csv";
+    var url = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(sheetName);
     var response = await axios.get(url);
     var lines = response.data.split("\n");
     var headers = lines[0].split(",").map(function(h) { return h.replace(/"/g, "").trim(); });
-    var products = [];
+    var rows = [];
     for (var i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
       var values = lines[i].split(",").map(function(v) { return v.replace(/"/g, "").trim(); });
-      var product = {};
+      var row = {};
       for (var j = 0; j < headers.length; j++) {
-        product[headers[j]] = values[j] || "";
+        row[headers[j]] = values[j] || "";
       }
-      products.push(product);
+      rows.push(row);
     }
-    return products;
+    return rows;
   } catch (err) {
     console.error("Sheet error:", err);
     return [];
   }
 }
 
-function buatSystemPrompt(products) {
-  var senarai = products.map(function(p) {
+function buatSystemPrompt(products, sizeChart) {
+  var senaraiProduk = products.map(function(p) {
     return p.Nama + " | Warna: " + p.Warna +
       " | Harga XS-2XL: RM" + p.Harga_XS_2XL +
-      " | Harga 3XL-4XL: RM" + p.Harga_3XL_4XL +
+      " | Harga 3XL-4XL: RM" + p.Harga_3XL_4XL + " (ADD ON RM10)" +
       " | Stok: XS=" + p.Stock_XS +
       " S=" + p.Stock_S +
       " M=" + p.Stock_M +
@@ -48,7 +48,36 @@ function buatSystemPrompt(products) {
       " 4XL=" + p.Stock_4XL;
   }).join("\n");
 
-  return "Kamu adalah pembantu jualan kedai baju Kurung Adel Adyana. Jawab dalam Bahasa Malaysia, mesra dan profesional.\n\nSenarai produk terkini:\n" + senarai + "\n\nPeraturan:\n- Jika stok = 0, beritahu HABIS STOK\n- Tanya saiz & warna sebelum confirm order\n- Harga 3XL & 4XL lebih mahal\n- Jika nak order, minta nama, alamat & no telefon\n- Postage: Semenanjung RM8, Sabah/Sarawak RM12";
+  var namaBaju = "";
+  var sizeInfo = {};
+  sizeChart.forEach(function(row) {
+    if (!namaBaju) namaBaju = row.Nama;
+    if (!sizeInfo[row.Ukuran]) sizeInfo[row.Ukuran] = {};
+    ["XS","S","M","L","XL","2XL","3XL","4XL"].forEach(function(s) {
+      sizeInfo[row.Ukuran][s] = row[s] || "";
+    });
+  });
+
+  var sizeText = namaBaju + " - Panduan Saiz:\n";
+  Object.keys(sizeInfo).forEach(function(ukuran) {
+    sizeText += ukuran + ": ";
+    sizeText += ["XS","S","M","L","XL","2XL","3XL","4XL"].map(function(s) {
+      return s + "=" + sizeInfo[ukuran][s];
+    }).join(", ") + "\n";
+  });
+
+  return "Kamu adalah pembantu jualan kedai baju ADEL Adyana Elegance. Jawab dalam Bahasa Malaysia yang mesra, sopan dan mudah difahami semua peringkat umur.\n\n" +
+    "SENARAI PRODUK:\n" + senaraiProduk + "\n\n" +
+    "PANDUAN SAIZ:\n" + sizeText + "\n\n" +
+    "PERATURAN PENTING:\n" +
+    "- Jika pelanggan tanya saiz, tanya dulu berat badan dan ukuran dada mereka\n" +
+    "- Recommend saiz berdasarkan jadual saiz di atas\n" +
+    "- Jika stok = 0, beritahu HABIS STOK dan cadang warna/saiz lain\n" +
+    "- Saiz 3XL dan 4XL ada tambahan RM10 (ADD ON)\n" +
+    "- Tanya saiz & warna sebelum confirm order\n" +
+    "- Jika nak order, minta nama penuh, alamat lengkap & no telefon\n" +
+    "- Postage: Semenanjung RM8, Sabah/Sarawak RM12\n" +
+    "- Sentiasa mesra dan gunakan bahasa yang mudah difahami";
 }
 
 app.get("/webhook", function(req, res) {
@@ -66,23 +95,20 @@ app.post("/webhook", async function(req, res) {
       return res.sendStatus(200);
     }
 
-    var entry = body.entry[0];
-    var changes = entry.changes[0];
-    var value = changes.value;
-
+    var value = body.entry[0].changes[0].value;
     if (!value.messages) return res.sendStatus(200);
 
     var message = value.messages[0];
     var from = message.from;
     var text = message.text ? message.text.body : null;
-
     if (!text) return res.sendStatus(200);
 
     if (!sesi[from]) sesi[from] = [];
     sesi[from].push({ role: "user", content: text });
 
-    var products = await getInventory();
-    var systemPrompt = buatSystemPrompt(products);
+    var products = await getSheetData("Sheet1");
+    var sizeChart = await getSheetData("Size Chart");
+    var systemPrompt = buatSystemPrompt(products, sizeChart);
 
     var response = await claude.messages.create({
       model: "claude-sonnet-4-5",
@@ -94,13 +120,10 @@ app.post("/webhook", async function(req, res) {
     var jawapan = response.content[0].text;
     sesi[from].push({ role: "assistant", content: jawapan });
 
-    var phoneId = process.env.PHONE_NUMBER_ID;
-    var token = process.env.WHATSAPP_TOKEN;
-
     await axios.post(
-      "https://graph.facebook.com/v18.0/" + phoneId + "/messages",
+      "https://graph.facebook.com/v18.0/" + process.env.PHONE_NUMBER_ID + "/messages",
       { messaging_product: "whatsapp", to: from, text: { body: jawapan } },
-      { headers: { Authorization: "Bearer " + token } }
+      { headers: { Authorization: "Bearer " + process.env.WHATSAPP_TOKEN } }
     );
 
     res.sendStatus(200);
