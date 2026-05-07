@@ -1,69 +1,79 @@
 const express = require("express");
-const twilio = require("twilio");
+const axios = require("axios");
 const Anthropic = require("@anthropic-ai/sdk");
 
 const app = express();
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 const claude = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY
 });
 
-const products = [
-  {
-    nama: "Baju Kurung Moden Bella",
-    harga: 89.90,
-    saiz: ["XS", "S", "M", "L", "XL", "XXL"],
-    stok: { XS: 3, S: 10, M: 15, L: 8, XL: 5, XXL: 2 },
-    warna: ["Putih", "Biru Muda", "Hijau Mint"]
-  },
-  {
-    nama: "Blouse Raya Sofea",
-    harga: 65.00,
-    saiz: ["S", "M", "L", "XL"],
-    stok: { S: 0, M: 7, L: 12, XL: 4 },
-    warna: ["Merah Marun", "Navy", "Krem"]
-  }
-];
+const VERIFY_TOKEN = "chatbot-baju-token";
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 
 const sesi = {};
 
-app.post("/webhook", async function(req, res) {
-  var mesej = req.body.Body;
-  var noPhone = req.body.From;
-
-  if (!sesi[noPhone]) {
-    sesi[noPhone] = [];
+// Webhook verify
+app.get("/webhook", (req, res) => {
+  if (req.query["hub.verify_token"] === VERIFY_TOKEN) {
+    res.send(req.query["hub.challenge"]);
+  } else {
+    res.sendStatus(403);
   }
+});
 
-  sesi[noPhone].push({ role: "user", content: mesej });
+// Terima mesej
+app.post("/webhook", async (req, res) => {
+  const body = req.body;
 
-  var senaraiProduk = products.map(function(p) {
-    return "Nama: " + p.nama + " | Harga: RM" + p.harga + " | Saiz: " + p.saiz.join(",") + " | Stok: " + JSON.stringify(p.stok) + " | Warna: " + p.warna.join(",");
-  }).join("\n");
+  if (body.object === "whatsapp_business_account") {
+    const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    const from = message?.from;
+    const text = message?.text?.body;
 
-  var systemPrompt = "Kamu adalah pembantu jualan kedai baju. Jawab dalam Bahasa Malaysia, mesra dan profesional.\nSenarai produk:\n" + senaraiProduk + "\n\nPeraturan:\n- Jika stok = 0, beritahu HABIS STOK\n- Tanya saiz & warna sebelum confirm order\n- Jika nak order, minta nama, alamat & no telefon\n- Postage: Semenanjung RM8, Sabah/Sarawak RM12";
+    if (!message || !text) return res.sendStatus(200);
 
-  try {
-    var response = await claude.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 500,
-      system: systemPrompt,
-      messages: sesi[noPhone]
-    });
+    if (!sesi[from]) sesi[from] = [];
+    sesi[from].push({ role: "user", content: text });
 
-    var jawapan = response.content[0].text;
-    sesi[noPhone].push({ role: "assistant", content: jawapan });
+    const systemPrompt = `Kamu adalah pembantu jualan kedai baju Kurung Adel Adyana. 
+Jawab dalam Bahasa Malaysia, mesra dan profesional.
+Produk:
+- Baju Kurung Moden Bella: RM89.90, Saiz XS-XXL, Warna: Putih/Biru Muda/Hijau Mint
+- Blouse Raya Sofea: RM65.00, Saiz S-XL, Warna: Merah Marun/Navy/Krem
+Postage: Semenanjung RM8, Sabah/Sarawak RM12`;
 
-    var twiml = new twilio.twiml.MessagingResponse();
-    twiml.message(jawapan);
-    res.type("text/xml").send(twiml.toString());
+    try {
+      const response = await claude.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 500,
+        system: systemPrompt,
+        messages: sesi[from]
+      });
 
-  } catch (err) {
-    console.error(err);
-    var twiml2 = new twilio.twiml.MessagingResponse();
-    twiml2.message("Maaf, ada masalah teknikal. Cuba lagi.");
-    res.type("text/xml").send(twiml2.toString());
+      const jawapan = response.content[0].text;
+      sesi[from].push({ role: "assistant", content: jawapan });
+
+      // Hantar balik ke WhatsApp
+      await axios.post(
+        https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages,
+        {
+          messaging_product: "whatsapp",
+          to: from,
+          text: { body: jawapan }
+        },
+        {
+          headers: { Authorization: Bearer ${WHATSAPP_TOKEN} }
+        }
+      );
+
+    } catch (err) {
+      console.error(err);
+    }
+
+    res.sendStatus(200);
   }
 });
 
