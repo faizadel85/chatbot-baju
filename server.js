@@ -78,8 +78,13 @@ app.post("/webhook", async function(req, res) {
     if (data.event !== "message:in:new") return res.sendStatus(200);
     if (data.data.fromMe) return res.sendStatus(200);
 
-    var from = data.data.chatId;
-    var text = data.data.body;
+    var from = data.data.chatId || data.data.from || "";
+    var text = data.data.body || data.data.text || "";
+
+    if (!from || !text) return res.sendStatus(200);
+
+   // Buang @c.us
+   var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "");
 
     if (!text) return res.sendStatus(200);
 
@@ -103,7 +108,7 @@ app.post("/webhook", async function(req, res) {
     // Hantar balik guna Wassenger API
     await axios.post(
       "https://api.wassenger.com/v1/messages",
-      { phone: from.replace('@c.us', ''), message: jawapan },
+      { phone: phoneNumber, message: jawapan },
       { headers: { Token: WASSENGER_TOKEN } }
     );
 
