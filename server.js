@@ -103,7 +103,7 @@ app.post("/webhook", async function(req, res) {
     // Hantar balik guna Wassenger API
     await axios.post(
       "https://api.wassenger.com/v1/messages",
-      { phone: from, message: jawapan },
+      { phone: from.replace('@c.us', ''), message: jawapan },
       { headers: { Token: WASSENGER_TOKEN } }
     );
 
