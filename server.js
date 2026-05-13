@@ -6,11 +6,11 @@ const app = express();
 app.use(express.json());
 
 const claude = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
-const VERIFY_TOKEN = "chatbot-baju-token";
-const SHEET_ID = "1lz5K8te2CihyjBcHht4FH4j21Sir1EzNwapGlIQfvb8";
+const WASSENGER_TOKEN = process.env.WASSENGER_TOKEN;
 const sesi = {};
 
 async function getSheetData(sheetName) {
+  var SHEET_ID = "1lz5K8te2CihyjBcHht4FH4j21Sir1EzNwapGlIQfvb8";
   try {
     var url = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(sheetName);
     var response = await axios.get(url);
@@ -38,69 +38,49 @@ function buatSystemPrompt(products, sizeChart) {
     return p.Nama + " | Warna: " + p.Warna +
       " | Harga XS-2XL: RM" + p.Harga_XS_2XL +
       " | Harga 3XL-4XL: RM" + p.Harga_3XL_4XL + " (ADD ON RM10)" +
-      " | Stok: XS=" + p.Stock_XS +
-      " S=" + p.Stock_S +
-      " M=" + p.Stock_M +
-      " L=" + p.Stock_L +
-      " XL=" + p.Stock_XL +
-      " 2XL=" + p.Stock_2XL +
-      " 3XL=" + p.Stock_3XL +
-      " 4XL=" + p.Stock_4XL;
+      " | Stok: XS=" + p.Stock_XS + " S=" + p.Stock_S +
+      " M=" + p.Stock_M + " L=" + p.Stock_L +
+      " XL=" + p.Stock_XL + " 2XL=" + p.Stock_2XL +
+      " 3XL=" + p.Stock_3XL + " 4XL=" + p.Stock_4XL;
   }).join("\n");
 
-  var namaBaju = "";
   var sizeInfo = {};
   sizeChart.forEach(function(row) {
-    if (!namaBaju) namaBaju = row.Nama;
     if (!sizeInfo[row.Ukuran]) sizeInfo[row.Ukuran] = {};
     ["XS","S","M","L","XL","2XL","3XL","4XL"].forEach(function(s) {
       sizeInfo[row.Ukuran][s] = row[s] || "";
     });
   });
 
-  var sizeText = namaBaju + " - Panduan Saiz:\n";
+  var sizeText = "Panduan Saiz Baju Kurung Neesya:\n";
   Object.keys(sizeInfo).forEach(function(ukuran) {
-    sizeText += ukuran + ": ";
-    sizeText += ["XS","S","M","L","XL","2XL","3XL","4XL"].map(function(s) {
+    sizeText += ukuran + ": " + ["XS","S","M","L","XL","2XL","3XL","4XL"].map(function(s) {
       return s + "=" + sizeInfo[ukuran][s];
     }).join(", ") + "\n";
   });
 
-  return "Kamu adalah pembantu jualan kedai baju ADEL Adyana Elegance. Jawab dalam Bahasa Malaysia yang mesra, sopan dan mudah difahami semua peringkat umur.\n\n" +
-    "SENARAI PRODUK:\n" + senaraiProduk + "\n\n" +
+  return "Kamu adalah pembantu jualan kedai baju ADEL Adyana Elegance. Jawab dalam Bahasa Malaysia yang mesra dan mudah difahami.\n\n" +
+    "PRODUK:\n" + senaraiProduk + "\n\n" +
     "PANDUAN SAIZ:\n" + sizeText + "\n\n" +
-    "PERATURAN PENTING:\n" +
-    "- Jika pelanggan tanya saiz, tanya dulu berat badan dan ukuran dada mereka\n" +
-    "- Recommend saiz berdasarkan jadual saiz di atas\n" +
-    "- Jika stok = 0, beritahu HABIS STOK dan cadang warna/saiz lain\n" +
-    "- Saiz 3XL dan 4XL ada tambahan RM10 (ADD ON)\n" +
-    "- Tanya saiz & warna sebelum confirm order\n" +
-    "- Jika nak order, minta nama penuh, alamat lengkap & no telefon\n" +
-    "- Postage: Semenanjung RM8, Sabah/Sarawak RM12\n" +
-    "- Sentiasa mesra dan gunakan bahasa yang mudah difahami";
+    "PERATURAN:\n" +
+    "- Tanya berat badan dan ukuran dada untuk recommend saiz\n" +
+    "- Jika stok = 0, beritahu HABIS STOK\n" +
+    "- Saiz 3XL dan 4XL ada tambahan RM10\n" +
+    "- Minta nama penuh, alamat dan no telefon untuk order\n" +
+    "- Postage: Semenanjung RM8, Sabah/Sarawak RM12";
 }
-
-app.get("/webhook", function(req, res) {
-  if (req.query["hub.verify_token"] === VERIFY_TOKEN) {
-    res.send(req.query["hub.challenge"]);
-  } else {
-    res.sendStatus(403);
-  }
-});
 
 app.post("/webhook", async function(req, res) {
   try {
-    var body = req.body;
-    if (body.object !== "whatsapp_business_account") {
-      return res.sendStatus(200);
-    }
+    var data = req.body;
 
-    var value = body.entry[0].changes[0].value;
-    if (!value.messages) return res.sendStatus(200);
+    // Wassenger webhook format
+    if (data.event !== "message:in:new") return res.sendStatus(200);
+    if (data.data.fromMe) return res.sendStatus(200);
 
-    var message = value.messages[0];
-    var from = message.from;
-    var text = message.text ? message.text.body : null;
+    var from = data.data.chatId;
+    var text = data.data.body;
+
     if (!text) return res.sendStatus(200);
 
     if (!sesi[from]) sesi[from] = [];
@@ -120,10 +100,11 @@ app.post("/webhook", async function(req, res) {
     var jawapan = response.content[0].text;
     sesi[from].push({ role: "assistant", content: jawapan });
 
+    // Hantar balik guna Wassenger API
     await axios.post(
-      "https://graph.facebook.com/v18.0/" + process.env.PHONE_NUMBER_ID + "/messages",
-      { messaging_product: "whatsapp", to: from, text: { body: jawapan } },
-      { headers: { Authorization: "Bearer " + process.env.WHATSAPP_TOKEN } }
+      "https://api.wassenger.com/v1/messages",
+      { phone: from, message: jawapan },
+      { headers: { Token: WASSENGER_TOKEN } }
     );
 
     res.sendStatus(200);
