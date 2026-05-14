@@ -101,7 +101,7 @@ app.post("/webhook", async function(req, res) {
 
     var products = await getSheetData("Sheet1");
     var sizeChart = await getSheetData("Size Chart");
-    var produkDetail = await getSheetData("Produk Detail");
+    var produkDetail = await getSheetData("produkDetail");
     var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail);
 
     var response = await claude.messages.create({
