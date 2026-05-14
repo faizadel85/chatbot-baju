@@ -33,7 +33,7 @@ async function getSheetData(sheetName) {
   }
 }
 
-function buatSystemPrompt(products, sizeChart) {
+function buatSystemPrompt(products, sizeChart, produkDetail) {
   var senaraiProduk = products.map(function(p) {
     return p.Nama + " | Warna: " + p.Warna +
       " | Harga XS-2XL: RM" + p.Harga_XS_2XL +
@@ -58,10 +58,18 @@ function buatSystemPrompt(products, sizeChart) {
       return s + "=" + sizeInfo[ukuran][s];
     }).join(", ") + "\n";
   });
-
+var detailText = "Detail Produk:\n";
+produkDetail.forEach(function(p) {
+  detailText += p.Nama + 
+    " | Material: " + p.Material +
+    " | Cutting: " + p.Cutting +
+    " | Feature: " + p.Feature +
+    " | Sesuai untuk: " + p.Sesuai_Untuk + "\n";
+});
   return "Kamu adalah pembantu jualan kedai baju ADEL Adyana Elegance. Jawab dalam Bahasa Malaysia yang mesra dan mudah difahami.\n\n" +
     "PRODUK:\n" + senaraiProduk + "\n\n" +
     "PANDUAN SAIZ:\n" + sizeText + "\n\n" +
+    "DETAIL PRODUK:\n" + detailText + "\n\n" +
     "PERATURAN:\n" +
     "- Tanya berat badan dan ukuran dada untuk recommend saiz\n" +
     "- Jika stok = 0, beritahu HABIS STOK\n" +
@@ -93,7 +101,8 @@ app.post("/webhook", async function(req, res) {
 
     var products = await getSheetData("Sheet1");
     var sizeChart = await getSheetData("Size Chart");
-    var systemPrompt = buatSystemPrompt(products, sizeChart);
+    var produkDetail = await getSheetData("Produk Detail");
+    var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail);
 
     var response = await claude.messages.create({
       model: "claude-sonnet-4-5",
