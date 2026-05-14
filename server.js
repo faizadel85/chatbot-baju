@@ -75,7 +75,8 @@ produkDetail.forEach(function(p) {
     "- Jika stok = 0, beritahu HABIS STOK\n" +
     "- Saiz 3XL dan 4XL ada tambahan RM10\n" +
     "- Minta nama penuh, alamat dan no telefon untuk order\n" +
-    "- Postage: Semenanjung RM8, Sabah/Sarawak RM12";
+    "- Postage: Semenanjung RM8, Sabah/Sarawak RM12\n" +
+    "- Jika pelanggan tanya size chart, jawab HANYA dengan ayat pendek: 'Ini size chart untuk [nama baju] 😊' — JANGAN tulis ukuran dalam teks sama sekali";
 }
 
 app.post("/webhook", async function(req, res) {
