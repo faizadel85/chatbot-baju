@@ -24,19 +24,22 @@ async function simpanOrder(data) {
       range: "Orders!A:J",
       valueInputOption: "RAW",
       resource: {
-        values: [[
-          tarikh,
-          data.nama || "",
-          data.noTel || "",
-          data.alamat || "",
-          data.produk || "",
-          data.saiz || "",
-          data.warna || "",
-          data.harga || "",
-          "Baru",
-          data.nota || ""
-        ]]
-      }
+  values: [[
+    tarikh,
+    data.nama || "",
+    data.noTel || "",
+    data.alamat || "",
+    data.poskod || "",
+    data.bandar || "",
+    data.negeri || "",
+    data.produk || "",
+    data.saiz || "",
+    data.warna || "",
+    data.harga || "",
+    "Baru",
+    data.nota || ""
+  ]]
+}
     });
     console.log("Order disimpan!");
   } catch (err) {
@@ -160,7 +163,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "- Jika pelanggan tanya size chart, jawab HANYA dengan ayat pendek: 'Ini size chart untuk [nama baju] 😊'\n" +
     "- JANGAN guna markdown, JANGAN tulis URL dalam teks jawapan\n" +
     "- Jawapan mesti dalam teks biasa sahaja\n" +
-    "- Bila pelanggan dah bagi nama, alamat dan no telefon untuk order, tulis 'ORDER_CONFIRMED:nama|notel|alamat|produk|saiz|warna|harga|nota' dalam jawapan";
+    "- Bila pelanggan dah bagi nama, alamat dan no telefon untuk order, tulis 'ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|nota' dalam jawapan\n" +
+"- Tanya alamat, poskod, bandar dan negeri berasingan";
 }
 
 // ===== WEBHOOK =====
@@ -209,15 +213,18 @@ app.post("/webhook", async function(req, res) {
     if (jawapan.includes("ORDER_CONFIRMED:")) {
       var orderData = jawapan.split("ORDER_CONFIRMED:")[1].split("|");
       await simpanOrder({
-        nama: orderData[0] || "",
-        noTel: orderData[1] || "",
-        alamat: orderData[2] || "",
-        produk: orderData[3] || "",
-        saiz: orderData[4] || "",
-        warna: orderData[5] || "",
-        harga: orderData[6] || "",
-        nota: orderData[7] || ""
-      });
+  nama: orderData[0] || "",
+  noTel: orderData[1] || "",
+  alamat: orderData[2] || "",
+  poskod: orderData[3] || "",
+  bandar: orderData[4] || "",
+  negeri: orderData[5] || "",
+  produk: orderData[6] || "",
+  saiz: orderData[7] || "",
+  warna: orderData[8] || "",
+  harga: orderData[9] || "",
+  nota: orderData[10] || ""
+});
       jawapan = jawapan.split("ORDER_CONFIRMED:")[0].trim();
     }
 
