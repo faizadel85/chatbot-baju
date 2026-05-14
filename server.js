@@ -115,11 +115,34 @@ app.post("/webhook", async function(req, res) {
     sesi[from].push({ role: "assistant", content: jawapan });
 
     // Hantar balik guna Wassenger API
-    await axios.post(
-      "https://api.wassenger.com/v1/messages",
-      { phone: phoneNumber, message: jawapan },
-      { headers: { Token: WASSENGER_TOKEN } }
-    );
+    // Cari gambar berdasarkan produk yang dibincangkan
+var gambarUrl = null;
+products.forEach(function(p) {
+  if (jawapan.toLowerCase().includes(p.Warna.toLowerCase()) && 
+      jawapan.toLowerCase().includes(p.Nama.toLowerCase()) &&
+      p.Gambar_URL) {
+    gambarUrl = p.Gambar_URL;
+  }
+});
+
+// Hantar gambar kalau ada
+if (gambarUrl) {
+  await axios.post(
+    "https://api.wassenger.com/v1/messages",
+    { 
+      phone: phoneNumber, 
+      message: jawapan,
+      media: { url: gambarUrl }
+    },
+    { headers: { Token: WASSENGER_TOKEN } }
+  );
+} else {
+  await axios.post(
+    "https://api.wassenger.com/v1/messages",
+    { phone: phoneNumber, message: jawapan },
+    { headers: { Token: WASSENGER_TOKEN } }
+  );
+}
 
     res.sendStatus(200);
   } catch (err) {
