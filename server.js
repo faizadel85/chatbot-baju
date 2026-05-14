@@ -102,10 +102,12 @@ app.post("/webhook", async function(req, res) {
     if (!sesi[from]) sesi[from] = [];
     sesi[from].push({ role: "user", content: text });
    // Mark sebagai replied & set follow up baru
-   if (followUpQueue[phoneNumber]) {
-   followUpQueue[phoneNumber].replied = true;
-   }
-   setFollowUp(phoneNumber);
+   followUpQueue[phoneNumber] = {
+  lastReply: Date.now(),
+  sent1: false,
+  sent2: false,
+  done: false
+};
 
     var products = await getSheetData("Sheet1");
     var sizeChart = await getSheetData("Size Chart");
@@ -175,12 +177,12 @@ if (gambarUrl) {
 // Auto Follow Up System
 var followUpQueue = {};
 
-var FOLLOWUP_1 = 60 * 60 * 1000; // 1 minit
-var FOLLOWUP_2 = 24 * 60 * 60 * 1000; // 2 minit
-
 var MSG_FOLLOWUP_1 = "Assalamualaikum 🫶🏻, akak cari size dan warna apa ya?\n\nAtau nak saya bantu dapatkan size yg sesuai untuk akak?🥰";
 
 var MSG_FOLLOWUP_2 = "Assalamualaikum! Semoga akak dalam keadaan baik & semoga urusan kita sama² dipermudahkan hari ini 😊\n\nAkak ada tekan link iklan saya dari FB/IG. Saya sangat-sangat hargai respon akak 💕\n\nAkak tengah cari warna dan size apa ya? Ada apa boleh saya bantu?";
+
+var FOLLOWUP_1_MS = 1 * 60 * 1000; // 1 minit test
+var FOLLOWUP_2_MS = 2 * 60 * 1000; // 2 minit test
 
 async function hantarFollowUp(phoneNumber, mesej) {
   try {
@@ -195,33 +197,27 @@ async function hantarFollowUp(phoneNumber, mesej) {
   }
 }
 
-function setFollowUp(phoneNumber) {
-  // Clear follow up lama kalau ada
-  if (followUpQueue[phoneNumber]) {
-    clearTimeout(followUpQueue[phoneNumber].timer1);
-    clearTimeout(followUpQueue[phoneNumber].timer2);
+// Check setiap 30 saat
+setInterval(async function() {
+  var now = Date.now();
+  for (var phone in followUpQueue) {
+    var q = followUpQueue[phone];
+    if (q.done) continue;
+
+    if (!q.sent1 && (now - q.lastReply) >= FOLLOWUP_1_MS) {
+      await hantarFollowUp(phone, MSG_FOLLOWUP_1);
+      followUpQueue[phone].sent1 = true;
+      console.log("Followup 1 sent to " + phone);
+    }
+
+    if (q.sent1 && !q.sent2 && (now - q.lastReply) >= FOLLOWUP_2_MS) {
+      await hantarFollowUp(phone, MSG_FOLLOWUP_2);
+      followUpQueue[phone].sent2 = true;
+      followUpQueue[phone].done = true;
+      console.log("Followup 2 sent to " + phone);
+    }
   }
-
-  // Set follow up baru
-  var timer1 = setTimeout(async function() {
-    // Semak kalau pelanggan dah reply — kalau dah reply, skip
-    if (followUpQueue[phoneNumber] && !followUpQueue[phoneNumber].replied) {
-      await hantarFollowUp(phoneNumber, MSG_FOLLOWUP_1);
-    }
-  }, FOLLOWUP_1);
-
-  var timer2 = setTimeout(async function() {
-    if (followUpQueue[phoneNumber] && !followUpQueue[phoneNumber].replied) {
-      await hantarFollowUp(phoneNumber, MSG_FOLLOWUP_2);
-      delete followUpQueue[phoneNumber];
-    }
-  }, FOLLOWUP_2);
-
-  followUpQueue[phoneNumber] = {
-    timer1: timer1,
-    timer2: timer2,
-    replied: false
-  };
+}, 30 * 1000); // check setiap 30 saat
 }
 var PORT = process.env.PORT || 8080;
 app.listen(PORT, function() {
