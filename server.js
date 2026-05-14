@@ -101,6 +101,11 @@ app.post("/webhook", async function(req, res) {
 
     if (!sesi[from]) sesi[from] = [];
     sesi[from].push({ role: "user", content: text });
+   // Mark sebagai replied & set follow up baru
+   if (followUpQueue[phoneNumber]) {
+   followUpQueue[phoneNumber].replied = true;
+   }
+   setFollowUp(phoneNumber);
 
     var products = await getSheetData("Sheet1");
     var sizeChart = await getSheetData("Size Chart");
@@ -167,7 +172,57 @@ if (gambarUrl) {
     res.sendStatus(200);
   }
 });
+// Auto Follow Up System
+var followUpQueue = {};
 
+var FOLLOWUP_1 = 60 * 60 * 1000; // 1 jam
+var FOLLOWUP_2 = 24 * 60 * 60 * 1000; // 24 jam
+
+var MSG_FOLLOWUP_1 = "Assalamualaikum 🫶🏻, akak cari size dan warna apa ya?\n\nAtau nak saya bantu dapatkan size yg sesuai untuk akak?🥰";
+
+var MSG_FOLLOWUP_2 = "Assalamualaikum! Semoga akak dalam keadaan baik & semoga urusan kita sama² dipermudahkan hari ini 😊\n\nAkak ada tekan link iklan saya dari FB/IG. Saya sangat-sangat hargai respon akak 💕\n\nAkak tengah cari warna dan size apa ya? Ada apa boleh saya bantu?";
+
+async function hantarFollowUp(phoneNumber, mesej) {
+  try {
+    await axios.post(
+      "https://api.wassenger.com/v1/messages",
+      { phone: phoneNumber, message: mesej },
+      { headers: { Token: WASSENGER_TOKEN } }
+    );
+    console.log("Follow up dihantar ke: " + phoneNumber);
+  } catch (err) {
+    console.error("Error follow up:", err);
+  }
+}
+
+function setFollowUp(phoneNumber) {
+  // Clear follow up lama kalau ada
+  if (followUpQueue[phoneNumber]) {
+    clearTimeout(followUpQueue[phoneNumber].timer1);
+    clearTimeout(followUpQueue[phoneNumber].timer2);
+  }
+
+  // Set follow up baru
+  var timer1 = setTimeout(async function() {
+    // Semak kalau pelanggan dah reply — kalau dah reply, skip
+    if (followUpQueue[phoneNumber] && !followUpQueue[phoneNumber].replied) {
+      await hantarFollowUp(phoneNumber, MSG_FOLLOWUP_1);
+    }
+  }, FOLLOWUP_1);
+
+  var timer2 = setTimeout(async function() {
+    if (followUpQueue[phoneNumber] && !followUpQueue[phoneNumber].replied) {
+      await hantarFollowUp(phoneNumber, MSG_FOLLOWUP_2);
+      delete followUpQueue[phoneNumber];
+    }
+  }, FOLLOWUP_2);
+
+  followUpQueue[phoneNumber] = {
+    timer1: timer1,
+    timer2: timer2,
+    replied: false
+  };
+}
 var PORT = process.env.PORT || 8080;
 app.listen(PORT, function() {
   console.log("Server running on port " + PORT);
