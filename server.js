@@ -16,8 +16,8 @@ var MSG_FOLLOWUP_1 = "Assalamualaikum 🫶🏻, akak cari size dan warna apa ya?
 
 var MSG_FOLLOWUP_2 = "Assalamualaikum! Semoga akak dalam keadaan baik & semoga urusan kita sama² dipermudahkan hari ini 😊\n\nAkak ada tekan link iklan saya dari FB/IG. Saya sangat-sangat hargai respon akak 💕\n\nAkak tengah cari warna dan size apa ya? Ada apa boleh saya bantu?";
 
-var FOLLOWUP_1_MS = 1 * 60 * 1000;
-var FOLLOWUP_2_MS = 2 * 60 * 1000;
+var FOLLOWUP_1_MS = 60 * 60 * 1000; // 1 jam
+var FOLLOWUP_2_MS = 24 * 60 * 60 * 1000; // 24 jam
 
 async function hantarFollowUp(phoneNumber, mesej) {
   try {
