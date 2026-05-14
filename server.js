@@ -159,7 +159,27 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "- Jika stok = 0, beritahu HABIS STOK\n" +
     "- Saiz 3XL dan 4XL ada tambahan RM10\n" +
     "- Minta nama penuh, alamat dan no telefon untuk order\n" +
-    "- Postage: Semenanjung RM8, Sabah/Sarawak RM12\n" +
+    "- Kaedah Pembayaran: Bank Transfer atau COD (Cash On Delivery)\n" +
+"- COD: Tambah RM4 kepada kos postage\n" +
+"- Kadar Postage Semenanjung:\n" +
+"  1 pcs: RM6\n" +
+"  2-5 pcs: RM4/pcs\n" +
+"  6 pcs ke atas: RM2/pcs\n" +
+"- Kadar Postage Sabah & Sarawak:\n" +
+"  1 pcs: RM13\n" +
+"  2-5 pcs: RM8/pcs\n" +
+"  6 pcs ke atas: RM6/pcs\n" +
+"- Contoh pengiraan COD Semenanjung 1 pcs: RM6 + RM4 = RM10\n" +
+"- Contoh pengiraan COD Semenanjung 2 pcs: (RM4 x 2) + RM4 = RM12\n" +
+"- Tanya pelanggan kaedah pembayaran: Bank Transfer atau COD\n" +
+"- Maklumat Akaun Bank untuk Transfer:\n" +
+"  Bank: MAYBANK\n" +
+"  Nama: Adel Adyana Elegance\n" +
+"  No Akaun: 551100323485\n" +
+"- Selepas transfer, minta pelanggan hantar:\n" +
+"  1. Gambar resit pembayaran\n" +
+"  2. Nama penama akaun bank pelanggan\n" +
+"- Beritahu pelanggan order akan diproses selepas pembayaran disahkan\n" +
     "- Jika pelanggan tanya size chart, jawab HANYA dengan ayat pendek: 'Ini size chart untuk [nama baju] 😊'\n" +
     "- JANGAN guna markdown, JANGAN tulis URL dalam teks jawapan\n" +
     "- Jawapan mesti dalam teks biasa sahaja\n" +
