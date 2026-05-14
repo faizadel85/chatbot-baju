@@ -33,7 +33,7 @@ async function getSheetData(sheetName) {
   }
 }
 
-function buatSystemPrompt(products, sizeChart, produkDetail) {
+function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
   var senaraiProduk = products.map(function(p) {
     return p.Nama + " | Warna: " + p.Warna +
       " | Harga XS-2XL: RM" + p.Harga_XS_2XL +
@@ -102,7 +102,8 @@ app.post("/webhook", async function(req, res) {
     var products = await getSheetData("Sheet1");
     var sizeChart = await getSheetData("Size Chart");
     var produkDetail = await getSheetData("produkDetail");
-    var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail);
+    var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages);
+    var sizeChartImages = await getSheetData("sizeChartImages");
 
     var response = await claude.messages.create({
       model: "claude-sonnet-4-5",
@@ -125,6 +126,19 @@ products.forEach(function(p) {
   }
 });
 
+// Semak tanya size chart
+var kataSizeChart = ["size chart", "carta saiz", "ukuran baju", "size guide"];
+var tanyaSizeChart = kataSizeChart.some(function(kata) {
+  return text.toLowerCase().includes(kata);
+});
+
+if (tanyaSizeChart) {
+  sizeChartImages.forEach(function(s) {
+    if (jawapan.toLowerCase().includes(s.Nama.toLowerCase()) && s.Gambar_URL) {
+      gambarUrl = s.Gambar_URL;
+    }
+  });
+}
 // Hantar gambar kalau ada
 if (gambarUrl) {
   await axios.post(
