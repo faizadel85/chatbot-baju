@@ -175,8 +175,8 @@ if (gambarUrl) {
 // Auto Follow Up System
 var followUpQueue = {};
 
-var FOLLOWUP_1 = 60 * 60 * 1000; // 1 jam
-var FOLLOWUP_2 = 24 * 60 * 60 * 1000; // 24 jam
+var FOLLOWUP_1 = 60 * 60 * 1000; // 1 minit
+var FOLLOWUP_2 = 24 * 60 * 60 * 1000; // 2 minit
 
 var MSG_FOLLOWUP_1 = "Assalamualaikum 🫶🏻, akak cari size dan warna apa ya?\n\nAtau nak saya bantu dapatkan size yg sesuai untuk akak?🥰";
 
