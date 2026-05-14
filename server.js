@@ -9,6 +9,49 @@ const claude = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 const WASSENGER_TOKEN = process.env.WASSENGER_TOKEN;
 const sesi = {};
 
+// ===== FOLLOW UP =====
+var followUpQueue = {};
+
+var MSG_FOLLOWUP_1 = "Assalamualaikum 🫶🏻, akak cari size dan warna apa ya?\n\nAtau nak saya bantu dapatkan size yg sesuai untuk akak?🥰";
+
+var MSG_FOLLOWUP_2 = "Assalamualaikum! Semoga akak dalam keadaan baik & semoga urusan kita sama² dipermudahkan hari ini 😊\n\nAkak ada tekan link iklan saya dari FB/IG. Saya sangat-sangat hargai respon akak 💕\n\nAkak tengah cari warna dan size apa ya? Ada apa boleh saya bantu?";
+
+var FOLLOWUP_1_MS = 1 * 60 * 1000;
+var FOLLOWUP_2_MS = 2 * 60 * 1000;
+
+async function hantarFollowUp(phoneNumber, mesej) {
+  try {
+    await axios.post(
+      "https://api.wassenger.com/v1/messages",
+      { phone: phoneNumber, message: mesej },
+      { headers: { Token: WASSENGER_TOKEN } }
+    );
+    console.log("Follow up dihantar ke: " + phoneNumber);
+  } catch (err) {
+    console.error("Error follow up:", err);
+  }
+}
+
+setInterval(async function() {
+  var now = Date.now();
+  for (var phone in followUpQueue) {
+    var q = followUpQueue[phone];
+    if (q.done) continue;
+    if (!q.sent1 && (now - q.lastReply) >= FOLLOWUP_1_MS) {
+      await hantarFollowUp(phone, MSG_FOLLOWUP_1);
+      followUpQueue[phone].sent1 = true;
+      console.log("Followup 1 sent to " + phone);
+    }
+    if (q.sent1 && !q.sent2 && (now - q.lastReply) >= FOLLOWUP_2_MS) {
+      await hantarFollowUp(phone, MSG_FOLLOWUP_2);
+      followUpQueue[phone].sent2 = true;
+      followUpQueue[phone].done = true;
+      console.log("Followup 2 sent to " + phone);
+    }
+  }
+}, 30 * 1000);
+
+// ===== GOOGLE SHEET =====
 async function getSheetData(sheetName) {
   var SHEET_ID = "1lz5K8te2CihyjBcHht4FH4j21Sir1EzNwapGlIQfvb8";
   try {
@@ -33,6 +76,7 @@ async function getSheetData(sheetName) {
   }
 }
 
+// ===== SYSTEM PROMPT =====
 function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
   var senaraiProduk = products.map(function(p) {
     return p.Nama + " | Warna: " + p.Warna +
@@ -58,14 +102,16 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
       return s + "=" + sizeInfo[ukuran][s];
     }).join(", ") + "\n";
   });
-var detailText = "Detail Produk:\n";
-produkDetail.forEach(function(p) {
-  detailText += p.Nama + 
-    " | Material: " + p.Material +
-    " | Cutting: " + p.Cutting +
-    " | Feature: " + p.Feature +
-    " | Sesuai untuk: " + p.Sesuai_Untuk + "\n";
-});
+
+  var detailText = "Detail Produk:\n";
+  produkDetail.forEach(function(p) {
+    detailText += p.Nama +
+      " | Material: " + p.Material +
+      " | Cutting: " + p.Cutting +
+      " | Feature: " + p.Feature +
+      " | Sesuai untuk: " + p.Sesuai_Untuk + "\n";
+  });
+
   return "Kamu adalah pembantu jualan kedai baju ADEL Adyana Elegance. Jawab dalam Bahasa Malaysia yang mesra dan mudah difahami.\n\n" +
     "PRODUK:\n" + senaraiProduk + "\n\n" +
     "PANDUAN SAIZ:\n" + sizeText + "\n\n" +
@@ -76,16 +122,16 @@ produkDetail.forEach(function(p) {
     "- Saiz 3XL dan 4XL ada tambahan RM10\n" +
     "- Minta nama penuh, alamat dan no telefon untuk order\n" +
     "- Postage: Semenanjung RM8, Sabah/Sarawak RM12\n" +
-    "- Jika pelanggan tanya size chart, jawab HANYA dengan ayat pendek: 'Ini size chart untuk [nama baju] 😊' — JANGAN tulis ukuran dalam teks sama sekali\n" +
-    "- JANGAN guna markdown, JANGAN tulis ![image], JANGAN tulis URL dalam teks jawapan\n" +
-    "- Jawapan mesti dalam teks biasa sahaja, tiada formatting";
+    "- Jika pelanggan tanya size chart, jawab HANYA dengan ayat pendek: 'Ini size chart untuk [nama baju] 😊'\n" +
+    "- JANGAN guna markdown, JANGAN tulis URL dalam teks jawapan\n" +
+    "- Jawapan mesti dalam teks biasa sahaja";
 }
 
+// ===== WEBHOOK =====
 app.post("/webhook", async function(req, res) {
   try {
     var data = req.body;
 
-    // Wassenger webhook format
     if (data.event !== "message:in:new") return res.sendStatus(200);
     if (data.data.fromMe) return res.sendStatus(200);
 
@@ -94,79 +140,73 @@ app.post("/webhook", async function(req, res) {
 
     if (!from || !text) return res.sendStatus(200);
 
-   // Buang @c.us
-   var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "");
+    var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "");
 
-    if (!text) return res.sendStatus(200);
+    // Reset follow up
+    followUpQueue[phoneNumber] = {
+      lastReply: Date.now(),
+      sent1: false,
+      sent2: false,
+      done: false
+    };
 
-    if (!sesi[from]) sesi[from] = [];
-    sesi[from].push({ role: "user", content: text });
-   // Mark sebagai replied & set follow up baru
-   followUpQueue[phoneNumber] = {
-  lastReply: Date.now(),
-  sent1: false,
-  sent2: false,
-  done: false
-};
+    if (!sesi[phoneNumber]) sesi[phoneNumber] = [];
+    sesi[phoneNumber].push({ role: "user", content: text });
 
     var products = await getSheetData("Sheet1");
     var sizeChart = await getSheetData("Size Chart");
     var produkDetail = await getSheetData("produkDetail");
-    var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages);
     var sizeChartImages = await getSheetData("sizeChartImages");
+    var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages);
 
     var response = await claude.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 500,
       system: systemPrompt,
-      messages: sesi[from]
+      messages: sesi[phoneNumber]
     });
 
     var jawapan = response.content[0].text;
-    sesi[from].push({ role: "assistant", content: jawapan });
+    sesi[phoneNumber].push({ role: "assistant", content: jawapan });
 
-    // Hantar balik guna Wassenger API
-    // Cari gambar berdasarkan produk yang dibincangkan
-var gambarUrl = null;
-products.forEach(function(p) {
-  if (jawapan.toLowerCase().includes(p.Warna.toLowerCase()) && 
-      jawapan.toLowerCase().includes(p.Nama.toLowerCase()) &&
-      p.Gambar_URL) {
-    gambarUrl = p.Gambar_URL;
-  }
-});
+    // Detect gambar produk
+    var gambarUrl = null;
+    products.forEach(function(p) {
+      if (jawapan.toLowerCase().includes(p.Warna.toLowerCase()) &&
+          jawapan.toLowerCase().includes(p.Nama.toLowerCase()) &&
+          p.Gambar_URL) {
+        gambarUrl = p.Gambar_URL;
+      }
+    });
 
-// Semak tanya size chart
-var kataSizeChart = ["size chart", "carta saiz", "ukuran baju", "size guide"];
-var tanyaSizeChart = kataSizeChart.some(function(kata) {
-  return text.toLowerCase().includes(kata);
-});
+    // Detect size chart
+    var kataSizeChart = ["size chart", "carta saiz", "ukuran baju", "size guide"];
+    var tanyaSizeChart = kataSizeChart.some(function(kata) {
+      return text.toLowerCase().includes(kata);
+    });
 
-if (tanyaSizeChart) {
-  sizeChartImages.forEach(function(s) {
-    if (jawapan.toLowerCase().includes(s.Nama.toLowerCase()) && s.Gambar_URL) {
-      gambarUrl = s.Gambar_URL;
+    if (tanyaSizeChart) {
+      sizeChartImages.forEach(function(s) {
+        if (jawapan.toLowerCase().includes(s.Nama.toLowerCase()) && s.Gambar_URL) {
+          gambarUrl = s.Gambar_URL;
+        }
+      });
     }
-  });
-}
-// Hantar gambar kalau ada
-if (gambarUrl) {
-  await axios.post(
-    "https://api.wassenger.com/v1/messages",
-    { 
-      phone: phoneNumber, 
-      message: jawapan,
-      media: { url: gambarUrl }
-    },
-    { headers: { Token: WASSENGER_TOKEN } }
-  );
-} else {
-  await axios.post(
-    "https://api.wassenger.com/v1/messages",
-    { phone: phoneNumber, message: jawapan },
-    { headers: { Token: WASSENGER_TOKEN } }
-  );
-}
+
+    // Hantar mesej
+    if (gambarUrl) {
+      await axios.post(
+        "https://api.wassenger.com/v1/messages",
+        { phone: phoneNumber, message: jawapan, media: { url: gambarUrl } },
+        { headers: { Token: WASSENGER_TOKEN } }
+      );
+    } else {
+      await axios.post(
+        "https://api.wassenger.com/v1/messages",
+        { phone: phoneNumber, message: jawapan },
+        { headers: { Token: WASSENGER_TOKEN } }
+      );
+    }
 
     res.sendStatus(200);
   } catch (err) {
@@ -174,51 +214,7 @@ if (gambarUrl) {
     res.sendStatus(200);
   }
 });
-// Auto Follow Up System
-var followUpQueue = {};
 
-var MSG_FOLLOWUP_1 = "Assalamualaikum 🫶🏻, akak cari size dan warna apa ya?\n\nAtau nak saya bantu dapatkan size yg sesuai untuk akak?🥰";
-
-var MSG_FOLLOWUP_2 = "Assalamualaikum! Semoga akak dalam keadaan baik & semoga urusan kita sama² dipermudahkan hari ini 😊\n\nAkak ada tekan link iklan saya dari FB/IG. Saya sangat-sangat hargai respon akak 💕\n\nAkak tengah cari warna dan size apa ya? Ada apa boleh saya bantu?";
-
-var FOLLOWUP_1_MS = 1 * 60 * 1000; // 1 minit test
-var FOLLOWUP_2_MS = 2 * 60 * 1000; // 2 minit test
-
-async function hantarFollowUp(phoneNumber, mesej) {
-  try {
-    await axios.post(
-      "https://api.wassenger.com/v1/messages",
-      { phone: phoneNumber, message: mesej },
-      { headers: { Token: WASSENGER_TOKEN } }
-    );
-    console.log("Follow up dihantar ke: " + phoneNumber);
-  } catch (err) {
-    console.error("Error follow up:", err);
-  }
-}
-
-// Check setiap 30 saat
-setInterval(async function() {
-  var now = Date.now();
-  for (var phone in followUpQueue) {
-    var q = followUpQueue[phone];
-    if (q.done) continue;
-
-    if (!q.sent1 && (now - q.lastReply) >= FOLLOWUP_1_MS) {
-      await hantarFollowUp(phone, MSG_FOLLOWUP_1);
-      followUpQueue[phone].sent1 = true;
-      console.log("Followup 1 sent to " + phone);
-    }
-
-    if (q.sent1 && !q.sent2 && (now - q.lastReply) >= FOLLOWUP_2_MS) {
-      await hantarFollowUp(phone, MSG_FOLLOWUP_2);
-      followUpQueue[phone].sent2 = true;
-      followUpQueue[phone].done = true;
-      console.log("Followup 2 sent to " + phone);
-    }
-  }
-}, 30 * 1000); // check setiap 30 saat
-}
 var PORT = process.env.PORT || 8080;
 app.listen(PORT, function() {
   console.log("Server running on port " + PORT);
