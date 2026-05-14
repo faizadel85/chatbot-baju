@@ -8,6 +8,41 @@ app.use(express.json());
 const claude = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 const WASSENGER_TOKEN = process.env.WASSENGER_TOKEN;
 const sesi = {};
+const { google } = require("googleapis");
+
+async function simpanOrder(data) {
+  try {
+    var credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+    var auth = new google.auth.GoogleAuth({
+      credentials: credentials,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"]
+    });
+    var sheets = google.sheets({ version: "v4", auth });
+    var tarikh = new Date().toLocaleString("ms-MY", { timeZone: "Asia/Kuala_Lumpur" });
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: "1lz5K8te2CihyjBcHht4FH4j21Sir1EzNwapGlIQfvb8",
+      range: "Orders!A:J",
+      valueInputOption: "RAW",
+      resource: {
+        values: [[
+          tarikh,
+          data.nama || "",
+          data.noTel || "",
+          data.alamat || "",
+          data.produk || "",
+          data.saiz || "",
+          data.warna || "",
+          data.harga || "",
+          "Baru",
+          data.nota || ""
+        ]]
+      }
+    });
+    console.log("Order disimpan!");
+  } catch (err) {
+    console.error("Error simpan order:", err);
+  }
+}
 
 // ===== FOLLOW UP =====
 var followUpQueue = {};
@@ -124,7 +159,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "- Postage: Semenanjung RM8, Sabah/Sarawak RM12\n" +
     "- Jika pelanggan tanya size chart, jawab HANYA dengan ayat pendek: 'Ini size chart untuk [nama baju] 😊'\n" +
     "- JANGAN guna markdown, JANGAN tulis URL dalam teks jawapan\n" +
-    "- Jawapan mesti dalam teks biasa sahaja";
+    "- Jawapan mesti dalam teks biasa sahaja\n" +
+    "- Bila pelanggan dah bagi nama, alamat dan no telefon untuk order, tulis 'ORDER_CONFIRMED:nama|notel|alamat|produk|saiz|warna|harga|nota' dalam jawapan";
 }
 
 // ===== WEBHOOK =====
@@ -168,6 +204,22 @@ app.post("/webhook", async function(req, res) {
 
     var jawapan = response.content[0].text;
     sesi[phoneNumber].push({ role: "assistant", content: jawapan });
+
+    // Detect dan simpan order
+    if (jawapan.includes("ORDER_CONFIRMED:")) {
+      var orderData = jawapan.split("ORDER_CONFIRMED:")[1].split("|");
+      await simpanOrder({
+        nama: orderData[0] || "",
+        noTel: orderData[1] || "",
+        alamat: orderData[2] || "",
+        produk: orderData[3] || "",
+        saiz: orderData[4] || "",
+        warna: orderData[5] || "",
+        harga: orderData[6] || "",
+        nota: orderData[7] || ""
+      });
+      jawapan = jawapan.split("ORDER_CONFIRMED:")[0].trim();
+    }
 
     // Detect gambar produk
     var gambarUrl = null;
