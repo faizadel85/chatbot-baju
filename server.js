@@ -461,32 +461,7 @@ if (!from || !text) return res.sendStatus(200);
         gambarUrl = p.Gambar_URL;
       }
     });
-// Detect tanya gambar katalog
-var kataKatalog = ["tengok gambar semua", "tunjuk semua design", "ada gambar tak", "boleh tunjuk koleksi", "tengok koleksi", "gambar semua"];
-var tanyaKatalog = kataKatalog.some(function(kata) {
-  return text.toLowerCase().includes(kata);
-});
-
-if (tanyaKatalog) {
-  var katalog = await getSheetDataCached("Katalog");
-  for (var k = 0; k < katalog.length; k++) {
-    if (katalog[k].Gambar_URL) {
-      await axios.post(
-        "https://api.wassenger.com/v1/messages",
-        {
-          phone: phoneNumber,
-          message: katalog[k].Nama,
-          media: { url: katalog[k].Gambar_URL }
-        },
-        { headers: { Token: WASSENGER_TOKEN } }
-      );
-      await new Promise(function(resolve) { setTimeout(resolve, 1000); });
-    }
-  }
-  await hantarMesej(phoneNumber, "Ini semua koleksi terbaru ADEL Adyana Elegance 😊\n\nCik berminat dengan design yang mana? Saya boleh tunjukkan lebih detail warna dan saiz yang ada!");
-  return res.sendStatus(200);
-}
-    // Detect size chart
+// Detect size chart
     var kataSizeChart = ["size chart", "carta saiz", "ukuran baju", "size guide"];
     var tanyaSizeChart = kataSizeChart.some(function(kata) {
       return text.toLowerCase().includes(kata);
@@ -520,7 +495,32 @@ if (tanyaKatalog) {
     gambarUrl = sizeChartUrls[0].url;
   }
 }
+// Detect tanya gambar katalog
+var kataKatalog = ["tengok gambar semua", "tunjuk semua design", "ada gambar tak", "boleh tunjuk koleksi", "tengok koleksi", "gambar semua"];
+var tanyaKatalog = kataKatalog.some(function(kata) {
+  return text.toLowerCase().includes(kata);
+});
 
+if (tanyaKatalog) {
+  var katalog = await getSheetDataCached("Katalog");
+  for (var k = 0; k < katalog.length; k++) {
+    if (katalog[k].Gambar_URL) {
+      await axios.post(
+        "https://api.wassenger.com/v1/messages",
+        {
+          phone: phoneNumber,
+          message: katalog[k].Nama,
+          media: { url: katalog[k].Gambar_URL }
+        },
+        { headers: { Token: WASSENGER_TOKEN } }
+      );
+      await new Promise(function(resolve) { setTimeout(resolve, 1000); });
+    }
+  }
+  await hantarMesej(phoneNumber, "Ini semua koleksi terbaru ADEL Adyana Elegance 😊\n\nCik berminat dengan design yang mana? Saya boleh tunjukkan lebih detail warna dan saiz yang ada!");
+  return res.sendStatus(200);
+}
+    
     // Hantar mesej
     if (gambarUrl) {
       await axios.post(
