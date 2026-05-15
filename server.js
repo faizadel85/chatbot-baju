@@ -470,35 +470,31 @@ if (!from || !text) return res.sendStatus(200);
     if (tanyaSizeChart) {
   var sizeChartUrls = [];
 
-  // Cari nama baju dalam text semasa ATAU history sesi
-  var fullHistory = text + " " + sesi[phoneNumber].map(function(m) {
+  // Gabung semua history perbualan
+  var fullHistory = sesi[phoneNumber].map(function(m) {
     return m.content;
-  }).join(" ");
+  }).join(" ").toLowerCase();
 
+  // Cari nama baju yang pernah disebut dalam perbualan
+  var bajuDipilih = null;
   sizeChartImages.forEach(function(s) {
-    var namaDisebut = fullHistory.toLowerCase().includes(s.Nama.toLowerCase());
-    var adaNamaDlmText = sizeChartImages.some(function(sc) {
-      return text.toLowerCase().includes(sc.Nama.toLowerCase());
-    });
-
-    if (namaDisebut && !adaNamaDlmText) {
-      // Ada dalam history tapi tak sebut dalam text semasa
-      if (s.Gambar_URL) {
-        sizeChartUrls.push({ nama: s.Nama, url: s.Gambar_URL });
-      }
-    } else if (adaNamaDlmText && text.toLowerCase().includes(s.Nama.toLowerCase())) {
-      // Sebut nama dalam text semasa
-      if (s.Gambar_URL) {
-        sizeChartUrls.push({ nama: s.Nama, url: s.Gambar_URL });
-      }
-    } else if (!adaNamaDlmText && !namaDisebut) {
-      // Tak sebut langsung — hantar semua
-      if (s.Gambar_URL) {
-        sizeChartUrls.push({ nama: s.Nama, url: s.Gambar_URL });
-      }
+    if (fullHistory.includes(s.Nama.toLowerCase())) {
+      if (!bajuDipilih) bajuDipilih = s;
     }
   });
 
+  if (bajuDipilih) {
+    // Hantar size chart baju yang dipilih je
+    sizeChartUrls.push({ nama: bajuDipilih.Nama, url: bajuDipilih.Gambar_URL });
+  } else {
+    // Kalau takde dalam history — hantar semua
+    sizeChartImages.forEach(function(s) {
+      if (s.Gambar_URL) {
+        sizeChartUrls.push({ nama: s.Nama, url: s.Gambar_URL });
+      }
+    });
+  }
+  
   if (sizeChartUrls.length > 1) {
     // Hantar semua size chart satu per satu
     for (var i = 0; i < sizeChartUrls.length; i++) {
