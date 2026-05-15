@@ -184,7 +184,14 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "- Jika pelanggan tanya size chart, jawab HANYA dengan ayat pendek: 'Ini size chart untuk [nama baju] 😊'\n" +
     "- JANGAN guna markdown, JANGAN tulis URL dalam teks jawapan\n" +
     "- Jawapan mesti dalam teks biasa sahaja\n" +
-    "- Bila pelanggan dah bagi nama, alamat dan no telefon untuk order, tulis 'ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|nota' dalam jawapan\n" +
+    "- Flow order yang BETUL:\n" +
+"  1. Pelanggan confirm nak beli\n" +
+"  2. Tanya kaedah pembayaran: Bank Transfer atau COD\n" +
+"  3. Bagi info pembayaran\n" +
+"  4. Tunggu pelanggan hantar resit/bukti bayar\n" +
+"  5. Bila pelanggan hantar resit, minta details penghantaran (nama, no telefon, alamat, poskod, bandar, negeri)\n" +
+"  6. Bila semua details lengkap, tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|nota\n" +
+"- JANGAN minta details penghantaran sebelum pelanggan hantar resit\n" +
 "- Tanya alamat, poskod, bandar dan negeri berasingan";
 }
 
