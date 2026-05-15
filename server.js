@@ -333,9 +333,22 @@ app.post("/webhook", async function(req, res) {
     if (data.data.fromMe) return res.sendStatus(200);
 
     var from = data.data.chatId || data.data.from || "";
-    var text = data.data.body || data.data.text || "";
+var text = data.data.body || data.data.text || "";
+var hasMedia = data.data.hasMedia || data.data.type === "image" || data.data.type === "document";
 
-    if (!from || !text) return res.sendStatus(200);
+// Kalau hantar gambar/media — anggap sebagai resit
+if (!text && hasMedia) {
+  var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "");
+  if (followUpQueue[phoneNumber] && followUpQueue[phoneNumber].stage === "ordered") {
+    followUpQueue[phoneNumber].stage = "paid";
+    followUpQueue[phoneNumber].done = true;
+    console.log("Resit diterima dari: " + phoneNumber);
+    await hantarMesej(phoneNumber, "Terima kasih Cik! Resit dah kami terima. Boleh Cik berikan nama penuh dan alamat penghantaran? 😊");
+  }
+  return res.sendStatus(200);
+}
+
+if (!from || !text) return res.sendStatus(200);
 
     var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "");
 
