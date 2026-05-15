@@ -468,12 +468,33 @@ if (!from || !text) return res.sendStatus(200);
     });
 
     if (tanyaSizeChart) {
-      sizeChartImages.forEach(function(s) {
-        if (jawapan.toLowerCase().includes(s.Nama.toLowerCase()) && s.Gambar_URL) {
-          gambarUrl = s.Gambar_URL;
-        }
-      });
+  var sizeChartUrls = [];
+  sizeChartImages.forEach(function(s) {
+    if (text.toLowerCase().includes(s.Nama.toLowerCase()) && s.Gambar_URL) {
+      sizeChartUrls.push({ nama: s.Nama, url: s.Gambar_URL });
     }
+  });
+
+  if (sizeChartUrls.length > 1) {
+    // Hantar semua size chart satu per satu
+    for (var i = 0; i < sizeChartUrls.length; i++) {
+      await axios.post(
+        "https://api.wassenger.com/v1/messages",
+        {
+          phone: phoneNumber,
+          message: "Size chart " + sizeChartUrls[i].nama + " 😊",
+          media: { url: sizeChartUrls[i].url }
+        },
+        { headers: { Token: WASSENGER_TOKEN } }
+      );
+      await new Promise(function(resolve) { setTimeout(resolve, 1000); });
+    }
+    await hantarMesej(phoneNumber, jawapan);
+    return res.sendStatus(200);
+  } else if (sizeChartUrls.length === 1) {
+    gambarUrl = sizeChartUrls[0].url;
+  }
+}
 
     // Hantar mesej
     if (gambarUrl) {
