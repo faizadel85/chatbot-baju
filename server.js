@@ -265,24 +265,31 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "  No Akaun: 551100323485\n" +
     "- Selepas transfer, minta pelanggan hantar gambar resit dan nama penama akaun bank\n" +
     "- Kamu BOLEH hantar gambar produk — sistem akan hantar gambar automatik\n" +
-    "- Jika pelanggan tanya gambar, jawab: 'Ini gambar [nama baju] warna [warna] untuk Cik 😊'\n" +
-    "- LARANGAN MUTLAK: JANGAN tulis perkataan 'sistem', 'akan hantar', 'gambar akan', kurungan [ ] dalam jawapan\n" +
-    "- LARANGAN MUTLAK: JANGAN explain cara gambar dihantar\n" +
-    "- Jawapan kepada soalan gambar mestilah ayat biasa sahaja\n" +
-    "- Flow order yang BETUL:\n" +
-    "  1. Pelanggan confirm nak beli\n" +
-    "  2. Tanya lokasi penghantaran: Semenanjung atau Sabah/Sarawak\n" +
-    "  3. Kira dan beritahu jumlah postage berdasarkan lokasi dan bilangan pcs\n" +
-    "  4. Tanya kaedah pembayaran: Bank Transfer atau COD\n" +
-    "  5. Bagi info pembayaran dengan jumlah total (harga + postage)\n" +
-    "  6. Tunggu pelanggan hantar resit/bukti bayar\n" +
-    "  7. Bila pelanggan hantar resit, minta details penghantaran (nama, no telefon, alamat, poskod, bandar, negeri)\n" +
-    "  8. Bila semua details lengkap, tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|nota\n" +
-    "- JANGAN minta details penghantaran sebelum pelanggan hantar resit\n" +
-    "- Bila pelanggan bagi details penghantaran, JANGAN tanya semula produk\n" +
-    "- Jika pelanggan tanya size chart, jawab HANYA dengan ayat pendek: 'Ini size chart untuk [nama baju] 😊'\n" +
-    "- JANGAN guna markdown, JANGAN tulis URL dalam teks jawapan\n" +
-    "- Jawapan mesti dalam teks biasa sahaja";
+    "- Jika pelanggan tanya gambar, jawab HANYA: 'Ini gambar [nama baju] warna [warna] untuk Cik 😊'\n" +
+    "- LARANGAN MUTLAK: JANGAN tulis URL, link, http, www dalam jawapan\n" +
+    "- LARANGAN MUTLAK: JANGAN tulis markdown 
+
+    ![...](...)
+
+ dalam jawapan\n" +
+   "- LARANGAN MUTLAK: JANGAN cipta URL gambar sendiri\n" +
+   "- LARANGAN MUTLAK: JANGAN tulis perkataan 'sistem', 'akan hantar', kurungan [ ] dalam jawapan\n" +
+   "- Gambar akan dihantar automatik oleh sistem — kamu hanya sebut nama dan warna produk\n" +
+   "- Jawapan kepada soalan gambar mestilah ayat biasa sahaja\n" +
+   "- Flow order yang BETUL:\n" +
+   "  1. Pelanggan confirm nak beli\n" +
+   "  2. Tanya lokasi penghantaran: Semenanjung atau Sabah/Sarawak\n" +
+   "  3. Kira dan beritahu jumlah postage berdasarkan lokasi dan bilangan pcs\n" +
+   "  4. Tanya kaedah pembayaran: Bank Transfer atau COD\n" +
+   "  5. Bagi info pembayaran dengan jumlah total (harga + postage)\n" +
+   "  6. Tunggu pelanggan hantar resit/bukti bayar\n" +
+   "  7. Bila pelanggan hantar resit, minta details penghantaran (nama, no telefon, alamat, poskod, bandar, negeri)\n" +
+   "  8. Bila semua details lengkap, tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|nota\n" +
+   "- JANGAN minta details penghantaran sebelum pelanggan hantar resit\n" +
+   "- Bila pelanggan bagi details penghantaran, JANGAN tanya semula produk\n" +
+   "- Jika pelanggan tanya size chart, jawab HANYA dengan ayat pendek: 'Ini size chart untuk [nama baju] 😊'\n" +
+   "- JANGAN guna markdown, JANGAN tulis URL dalam teks jawapan\n" +
+   "- Jawapan mesti dalam teks biasa sahaja";
 }
 
 // ===== WEBHOOK =====
@@ -327,7 +334,7 @@ app.post("/webhook", async function(req, res) {
     while (cuba < 3) {
       try {
         response = await claude.messages.create({
-          model: "claude-sonnet-4-5",
+          model: "claude-haiku-4-5-20251001",
           max_tokens: 500,
           system: systemPrompt,
           messages: sesi[phoneNumber]
