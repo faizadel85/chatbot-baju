@@ -285,7 +285,9 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
    "- Bila pelanggan bagi details penghantaran, JANGAN tanya semula produk\n" +
    "- Jika pelanggan tanya size chart, jawab HANYA dengan ayat pendek: 'Ini size chart untuk [nama baju] 😊'\n" +
    "- JANGAN guna markdown, JANGAN tulis URL dalam teks jawapan\n" +
-   "- Jawapan mesti dalam teks biasa sahaja";
+   "- Jawapan mesti dalam teks biasa sahaja\n" +
+"- WAJIB: Setiap jawapan mesti ada soalan susulan untuk teruskan perbualan\n" +
+"- Contoh soalan susulan: 'Cik nak tahu lebih lanjut?', 'Ada saiz lain yang Cik minat?', 'Boleh saya bantu Cik dengan apa lagi?'";
 }
 
 // ===== WEBHOOK =====
