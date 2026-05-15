@@ -8,7 +8,18 @@ app.use(express.json());
 
 const claude = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 const WASSENGER_TOKEN = process.env.WASSENGER_TOKEN;
+const SHEET_ID = "1lz5K8te2CihyjBcHht4FH4j21Sir1EzNwapGlIQfvb8";
 const sesi = {};
+
+// ===== GOOGLE AUTH =====
+async function getGoogleAuth() {
+  var credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+  var auth = new google.auth.GoogleAuth({
+    credentials: credentials,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"]
+  });
+  return auth;
+}
 
 // ===== CACHE =====
 var sheetCache = {};
@@ -24,18 +35,90 @@ async function getSheetDataCached(sheetName) {
   return data;
 }
 
+// ===== SIMPAN SESI =====
+async function simpanSesi(phoneNumber, messages) {
+  try {
+    var auth = await getGoogleAuth();
+    var sheets = google.sheets({ version: "v4", auth });
+
+    // Cari row sedia ada
+    var result = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: "Sessions!A:A"
+    });
+
+    var rows = result.data.values || [];
+    var rowIndex = -1;
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i][0] === phoneNumber) {
+        rowIndex = i + 1;
+        break;
+      }
+    }
+
+    var now = new Date().toISOString();
+    var messagesJson = JSON.stringify(messages.slice(-20)); // Simpan 20 mesej terakhir
+
+    if (rowIndex > 0) {
+      // Update row sedia ada
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: "Sessions!A" + rowIndex + ":C" + rowIndex,
+        valueInputOption: "RAW",
+        resource: { values: [[phoneNumber, now, messagesJson]] }
+      });
+    } else {
+      // Tambah row baru
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: SHEET_ID,
+        range: "Sessions!A:C",
+        valueInputOption: "RAW",
+        resource: { values: [[phoneNumber, now, messagesJson]] }
+      });
+    }
+  } catch (err) {
+    console.error("Error simpan sesi:", err);
+  }
+}
+
+// ===== LOAD SESI =====
+async function loadSesi(phoneNumber) {
+  try {
+    var auth = await getGoogleAuth();
+    var sheets = google.sheets({ version: "v4", auth });
+
+    var result = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: "Sessions!A:C"
+    });
+
+    var rows = result.data.values || [];
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i][0] === phoneNumber) {
+        var messages = JSON.parse(rows[i][2] || "[]");
+        // Semak kalau sesi lebih 24 jam — reset
+        var lastUpdated = new Date(rows[i][1]);
+        var now = new Date();
+        var diff = (now - lastUpdated) / (1000 * 60 * 60);
+        if (diff > 24) return [];
+        return messages;
+      }
+    }
+    return [];
+  } catch (err) {
+    console.error("Error load sesi:", err);
+    return [];
+  }
+}
+
 // ===== SIMPAN ORDER =====
 async function simpanOrder(data) {
   try {
-    var credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
-    var auth = new google.auth.GoogleAuth({
-      credentials: credentials,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"]
-    });
+    var auth = await getGoogleAuth();
     var sheets = google.sheets({ version: "v4", auth });
     var tarikh = new Date().toLocaleString("ms-MY", { timeZone: "Asia/Kuala_Lumpur" });
     await sheets.spreadsheets.values.append({
-      spreadsheetId: "1lz5K8te2CihyjBcHht4FH4j21Sir1EzNwapGlIQfvb8",
+      spreadsheetId: SHEET_ID,
       range: "Orders!A:M",
       valueInputOption: "RAW",
       resource: {
@@ -93,20 +176,17 @@ setInterval(async function() {
     if (!q.sent1 && (now - q.lastReply) >= FOLLOWUP_1_MS) {
       await hantarFollowUp(phone, MSG_FOLLOWUP_1);
       followUpQueue[phone].sent1 = true;
-      console.log("Followup 1 sent to " + phone);
     }
     if (q.sent1 && !q.sent2 && (now - q.lastReply) >= FOLLOWUP_2_MS) {
       await hantarFollowUp(phone, MSG_FOLLOWUP_2);
       followUpQueue[phone].sent2 = true;
       followUpQueue[phone].done = true;
-      console.log("Followup 2 sent to " + phone);
     }
   }
 }, 30 * 1000);
 
 // ===== GOOGLE SHEET =====
 async function getSheetData(sheetName) {
-  var SHEET_ID = "1lz5K8te2CihyjBcHht4FH4j21Sir1EzNwapGlIQfvb8";
   try {
     var url = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(sheetName);
     var response = await axios.get(url);
@@ -184,18 +264,19 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "  Nama: Adel Adyana Elegance\n" +
     "  No Akaun: 551100323485\n" +
     "- Selepas transfer, minta pelanggan hantar gambar resit dan nama penama akaun bank\n" +
+    "- Kamu BOLEH hantar gambar produk — sistem akan hantar gambar automatik\n" +
+    "- Jika pelanggan tanya atau minta tengok gambar/warna produk, sebut nama produk dan warna dalam jawapan\n" +
     "- Flow order yang BETUL:\n" +
     "  1. Pelanggan confirm nak beli\n" +
-    "  2. Tanya kaedah pembayaran: Bank Transfer atau COD\n" +
-    "  3. Bagi info pembayaran\n" +
-    "  4. Tunggu pelanggan hantar resit/bukti bayar\n" +
-    "  5. Bila pelanggan hantar resit, minta details penghantaran (nama, no telefon, alamat, poskod, bandar, negeri)\n" +
-    "  6. Bila semua details lengkap, tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|nota\n" +
+    "  2. Tanya lokasi penghantaran: Semenanjung atau Sabah/Sarawak\n" +
+    "  3. Kira dan beritahu jumlah postage berdasarkan lokasi dan bilangan pcs\n" +
+    "  4. Tanya kaedah pembayaran: Bank Transfer atau COD\n" +
+    "  5. Bagi info pembayaran dengan jumlah total (harga + postage)\n" +
+    "  6. Tunggu pelanggan hantar resit/bukti bayar\n" +
+    "  7. Bila pelanggan hantar resit, minta details penghantaran (nama, no telefon, alamat, poskod, bandar, negeri)\n" +
+    "  8. Bila semua details lengkap, tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|nota\n" +
     "- JANGAN minta details penghantaran sebelum pelanggan hantar resit\n" +
-    "- Postage: Semenanjung RM8, Sabah/Sarawak RM12\n" +
-    "- Kamu BOLEH hantar gambar produk — sistem akan hantar gambar automatik\n" +
-    "- Jika pelanggan tanya atau minta tengok gambar/warna produk, sebut nama produk dan warna dalam jawapan supaya sistem boleh hantar gambar\n" +
-    "- Contoh: 'Ini gambar Baju Kurung Neesya warna Navy Blue untuk Cik 😊'\n" +
+    "- Bila pelanggan bagi details penghantaran, JANGAN tanya semula produk\n" +
     "- Jika pelanggan tanya size chart, jawab HANYA dengan ayat pendek: 'Ini size chart untuk [nama baju] 😊'\n" +
     "- JANGAN guna markdown, JANGAN tulis URL dalam teks jawapan\n" +
     "- Jawapan mesti dalam teks biasa sahaja";
@@ -224,7 +305,11 @@ app.post("/webhook", async function(req, res) {
       done: false
     };
 
-    if (!sesi[phoneNumber]) sesi[phoneNumber] = [];
+    // Load sesi dari Google Sheet
+    if (!sesi[phoneNumber]) {
+      sesi[phoneNumber] = await loadSesi(phoneNumber);
+    }
+
     sesi[phoneNumber].push({ role: "user", content: text });
 
     var products = await getSheetDataCached("Sheet1");
@@ -255,6 +340,9 @@ app.post("/webhook", async function(req, res) {
     var jawapan = response.content[0].text;
     sesi[phoneNumber].push({ role: "assistant", content: jawapan });
 
+    // Simpan sesi ke Google Sheet
+    await simpanSesi(phoneNumber, sesi[phoneNumber]);
+
     // Detect dan simpan order
     if (jawapan.includes("ORDER_CONFIRMED:")) {
       var orderData = jawapan.split("ORDER_CONFIRMED:")[1].split("|");
@@ -272,9 +360,9 @@ app.post("/webhook", async function(req, res) {
         nota: orderData[10] || ""
       });
       jawapan = jawapan.split("ORDER_CONFIRMED:")[0].trim();
-if (!jawapan) {
-  jawapan = "Terima kasih Cik! Order Cik telah berjaya direkodkan. Kami akan proses segera dan maklumkan status penghantaran. 😊";
-}
+      if (!jawapan) {
+        jawapan = "Terima kasih Cik! Order Cik telah berjaya direkodkan. Kami akan proses segera dan maklumkan status penghantaran. 😊";
+      }
     }
 
     // Detect gambar produk
