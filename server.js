@@ -1,6 +1,7 @@
 const express = require("express");
 const axios = require("axios");
 const Anthropic = require("@anthropic-ai/sdk");
+const { google } = require("googleapis");
 
 const app = express();
 app.use(express.json());
@@ -8,8 +9,22 @@ app.use(express.json());
 const claude = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 const WASSENGER_TOKEN = process.env.WASSENGER_TOKEN;
 const sesi = {};
-const { google } = require("googleapis");
 
+// ===== CACHE =====
+var sheetCache = {};
+var CACHE_DURATION = 1 * 60 * 1000;
+
+async function getSheetDataCached(sheetName) {
+  var now = Date.now();
+  if (sheetCache[sheetName] && (now - sheetCache[sheetName].time) < CACHE_DURATION) {
+    return sheetCache[sheetName].data;
+  }
+  var data = await getSheetData(sheetName);
+  sheetCache[sheetName] = { data: data, time: now };
+  return data;
+}
+
+// ===== SIMPAN ORDER =====
 async function simpanOrder(data) {
   try {
     var credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
@@ -21,25 +36,25 @@ async function simpanOrder(data) {
     var tarikh = new Date().toLocaleString("ms-MY", { timeZone: "Asia/Kuala_Lumpur" });
     await sheets.spreadsheets.values.append({
       spreadsheetId: "1lz5K8te2CihyjBcHht4FH4j21Sir1EzNwapGlIQfvb8",
-      range: "Orders!A:J",
+      range: "Orders!A:M",
       valueInputOption: "RAW",
       resource: {
-  values: [[
-    tarikh,
-    data.nama || "",
-    data.noTel || "",
-    data.alamat || "",
-    data.poskod || "",
-    data.bandar || "",
-    data.negeri || "",
-    data.produk || "",
-    data.saiz || "",
-    data.warna || "",
-    data.harga || "",
-    "Baru",
-    data.nota || ""
-  ]]
-}
+        values: [[
+          tarikh,
+          data.nama || "",
+          data.noTel || "",
+          data.alamat || "",
+          data.poskod || "",
+          data.bandar || "",
+          data.negeri || "",
+          data.produk || "",
+          data.saiz || "",
+          data.warna || "",
+          data.harga || "",
+          "Baru",
+          data.nota || ""
+        ]]
+      }
     });
     console.log("Order disimpan!");
   } catch (err) {
@@ -54,8 +69,8 @@ var MSG_FOLLOWUP_1 = "Assalamualaikum 🫶🏻, Cik cari size dan warna apa ya?\
 
 var MSG_FOLLOWUP_2 = "Assalamualaikum! Semoga Cik dalam keadaan baik & semoga urusan kita sama² dipermudahkan hari ini 😊\n\nCik ada tekan link iklan saya dari FB/IG. Saya sangat-sangat hargai respon Cik 💕\n\nCik tengah cari warna dan size apa ya? Ada apa boleh saya bantu?";
 
-var FOLLOWUP_1_MS = 60 * 60 * 1000; // 1 jam
-var FOLLOWUP_2_MS = 24 * 60 * 60 * 1000; // 24 jam
+var FOLLOWUP_1_MS = 60 * 60 * 1000;
+var FOLLOWUP_2_MS = 24 * 60 * 60 * 1000;
 
 async function hantarFollowUp(phoneNumber, mesej) {
   try {
@@ -151,7 +166,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
   });
 
   return "Kamu adalah pembantu jualan kedai baju ADEL Adyana Elegance. Jawab dalam Bahasa Malaysia yang mesra dan mudah difahami.\n" +
-"PENTING: Sentiasa panggil pelanggan sebagai 'Cik' — JANGAN guna 'akak', 'awak', 'kakak' atau panggilan lain.\n\n" +
+    "PENTING: Sentiasa panggil pelanggan sebagai 'Cik' — JANGAN guna 'akak', 'awak', 'kakak' atau panggilan lain.\n\n" +
     "PRODUK:\n" + senaraiProduk + "\n\n" +
     "PANDUAN SAIZ:\n" + sizeText + "\n\n" +
     "DETAIL PRODUK:\n" + detailText + "\n\n" +
@@ -159,40 +174,28 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "- Tanya berat badan dan ukuran dada untuk recommend saiz\n" +
     "- Jika stok = 0, beritahu HABIS STOK\n" +
     "- Saiz 3XL dan 4XL ada tambahan RM10\n" +
-    "- Minta nama penuh, alamat dan no telefon untuk order\n" +
-    "- Kaedah Pembayaran: Bank Transfer atau COD (Cash On Delivery)\n" +
-"- COD: Tambah RM4 kepada kos postage\n" +
-"- Kadar Postage Semenanjung:\n" +
-"  1 pcs: RM6\n" +
-"  2-5 pcs: RM4/pcs\n" +
-"  6 pcs ke atas: RM2/pcs\n" +
-"- Kadar Postage Sabah & Sarawak:\n" +
-"  1 pcs: RM13\n" +
-"  2-5 pcs: RM8/pcs\n" +
-"  6 pcs ke atas: RM6/pcs\n" +
-"- Contoh pengiraan COD Semenanjung 1 pcs: RM6 + RM4 = RM10\n" +
-"- Contoh pengiraan COD Semenanjung 2 pcs: (RM4 x 2) + RM4 = RM12\n" +
-"- Tanya pelanggan kaedah pembayaran: Bank Transfer atau COD\n" +
-"- Maklumat Akaun Bank untuk Transfer:\n" +
-"  Bank: MAYBANK\n" +
-"  Nama: Adel Adyana Elegance\n" +
-"  No Akaun: 551100323485\n" +
-"- Selepas transfer, minta pelanggan hantar:\n" +
-"  1. Gambar resit pembayaran\n" +
-"  2. Nama penama akaun bank pelanggan\n" +
-"- Beritahu pelanggan order akan diproses selepas pembayaran disahkan\n" +
+    "- Kaedah Pembayaran: Bank Transfer atau COD\n" +
+    "- COD: Tambah RM4 kepada kos postage\n" +
+    "- Kadar Postage Semenanjung: 1pcs RM6, 2-5pcs RM4/pcs, 6pcs ke atas RM2/pcs\n" +
+    "- Kadar Postage Sabah & Sarawak: 1pcs RM13, 2-5pcs RM8/pcs, 6pcs ke atas RM6/pcs\n" +
+    "- Tanya pelanggan kaedah pembayaran: Bank Transfer atau COD\n" +
+    "- Maklumat Akaun Bank untuk Transfer:\n" +
+    "  Bank: MAYBANK\n" +
+    "  Nama: Adel Adyana Elegance\n" +
+    "  No Akaun: 551100323485\n" +
+    "- Selepas transfer, minta pelanggan hantar gambar resit dan nama penama akaun bank\n" +
+    "- Flow order yang BETUL:\n" +
+    "  1. Pelanggan confirm nak beli\n" +
+    "  2. Tanya kaedah pembayaran: Bank Transfer atau COD\n" +
+    "  3. Bagi info pembayaran\n" +
+    "  4. Tunggu pelanggan hantar resit/bukti bayar\n" +
+    "  5. Bila pelanggan hantar resit, minta details penghantaran (nama, no telefon, alamat, poskod, bandar, negeri)\n" +
+    "  6. Bila semua details lengkap, tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|nota\n" +
+    "- JANGAN minta details penghantaran sebelum pelanggan hantar resit\n" +
+    "- Postage: Semenanjung RM8, Sabah/Sarawak RM12\n" +
     "- Jika pelanggan tanya size chart, jawab HANYA dengan ayat pendek: 'Ini size chart untuk [nama baju] 😊'\n" +
     "- JANGAN guna markdown, JANGAN tulis URL dalam teks jawapan\n" +
-    "- Jawapan mesti dalam teks biasa sahaja\n" +
-    "- Flow order yang BETUL:\n" +
-"  1. Pelanggan confirm nak beli\n" +
-"  2. Tanya kaedah pembayaran: Bank Transfer atau COD\n" +
-"  3. Bagi info pembayaran\n" +
-"  4. Tunggu pelanggan hantar resit/bukti bayar\n" +
-"  5. Bila pelanggan hantar resit, minta details penghantaran (nama, no telefon, alamat, poskod, bandar, negeri)\n" +
-"  6. Bila semua details lengkap, tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|nota\n" +
-"- JANGAN minta details penghantaran sebelum pelanggan hantar resit\n" +
-"- Tanya alamat, poskod, bandar dan negeri berasingan";
+    "- Jawapan mesti dalam teks biasa sahaja";
 }
 
 // ===== WEBHOOK =====
@@ -221,29 +224,30 @@ app.post("/webhook", async function(req, res) {
     if (!sesi[phoneNumber]) sesi[phoneNumber] = [];
     sesi[phoneNumber].push({ role: "user", content: text });
 
-    var products = await getSheetData("Sheet1");
-    var sizeChart = await getSheetData("Size Chart");
-    var produkDetail = await getSheetData("produkDetail");
-    var sizeChartImages = await getSheetData("sizeChartImages");
+    var products = await getSheetDataCached("Sheet1");
+    var sizeChart = await getSheetDataCached("Size Chart");
+    var produkDetail = await getSheetDataCached("produkDetail");
+    var sizeChartImages = await getSheetDataCached("sizeChartImages");
     var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages);
 
+    // Retry 3 kali kalau overloaded
     var response;
-var cuba = 0;
-while (cuba < 3) {
-  try {
-    response = await claude.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 500,
-      system: systemPrompt,
-      messages: sesi[phoneNumber]
-    });
-    break;
-  } catch (retryErr) {
-    cuba++;
-    if (cuba === 3) throw retryErr;
-    await new Promise(function(resolve) { setTimeout(resolve, 2000); });
-  }
-}
+    var cuba = 0;
+    while (cuba < 3) {
+      try {
+        response = await claude.messages.create({
+          model: "claude-sonnet-4-5",
+          max_tokens: 500,
+          system: systemPrompt,
+          messages: sesi[phoneNumber]
+        });
+        break;
+      } catch (retryErr) {
+        cuba++;
+        if (cuba === 3) throw retryErr;
+        await new Promise(function(resolve) { setTimeout(resolve, 2000); });
+      }
+    }
 
     var jawapan = response.content[0].text;
     sesi[phoneNumber].push({ role: "assistant", content: jawapan });
@@ -252,18 +256,18 @@ while (cuba < 3) {
     if (jawapan.includes("ORDER_CONFIRMED:")) {
       var orderData = jawapan.split("ORDER_CONFIRMED:")[1].split("|");
       await simpanOrder({
-  nama: orderData[0] || "",
-  noTel: orderData[1] || "",
-  alamat: orderData[2] || "",
-  poskod: orderData[3] || "",
-  bandar: orderData[4] || "",
-  negeri: orderData[5] || "",
-  produk: orderData[6] || "",
-  saiz: orderData[7] || "",
-  warna: orderData[8] || "",
-  harga: orderData[9] || "",
-  nota: orderData[10] || ""
-});
+        nama: orderData[0] || "",
+        noTel: orderData[1] || "",
+        alamat: orderData[2] || "",
+        poskod: orderData[3] || "",
+        bandar: orderData[4] || "",
+        negeri: orderData[5] || "",
+        produk: orderData[6] || "",
+        saiz: orderData[7] || "",
+        warna: orderData[8] || "",
+        harga: orderData[9] || "",
+        nota: orderData[10] || ""
+      });
       jawapan = jawapan.split("ORDER_CONFIRMED:")[0].trim();
     }
 
