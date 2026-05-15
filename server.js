@@ -50,9 +50,9 @@ async function simpanOrder(data) {
 // ===== FOLLOW UP =====
 var followUpQueue = {};
 
-var MSG_FOLLOWUP_1 = "Assalamualaikum 🫶🏻, akak cari size dan warna apa ya?\n\nAtau nak saya bantu dapatkan size yg sesuai untuk akak?🥰";
+var MSG_FOLLOWUP_1 = "Assalamualaikum 🫶🏻, Cik cari size dan warna apa ya?\n\nAtau nak saya bantu dapatkan size yg sesuai untuk Cik?🥰";
 
-var MSG_FOLLOWUP_2 = "Assalamualaikum! Semoga akak dalam keadaan baik & semoga urusan kita sama² dipermudahkan hari ini 😊\n\nAkak ada tekan link iklan saya dari FB/IG. Saya sangat-sangat hargai respon akak 💕\n\nAkak tengah cari warna dan size apa ya? Ada apa boleh saya bantu?";
+var MSG_FOLLOWUP_2 = "Assalamualaikum! Semoga Cik dalam keadaan baik & semoga urusan kita sama² dipermudahkan hari ini 😊\n\nCik ada tekan link iklan saya dari FB/IG. Saya sangat-sangat hargai respon Cik 💕\n\nCik tengah cari warna dan size apa ya? Ada apa boleh saya bantu?";
 
 var FOLLOWUP_1_MS = 60 * 60 * 1000; // 1 jam
 var FOLLOWUP_2_MS = 24 * 60 * 60 * 1000; // 24 jam
@@ -150,7 +150,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
       " | Sesuai untuk: " + p.Sesuai_Untuk + "\n";
   });
 
-  return "Kamu adalah pembantu jualan kedai baju ADEL Adyana Elegance. Jawab dalam Bahasa Malaysia yang mesra dan mudah difahami.\n\n" +
+  return "Kamu adalah pembantu jualan kedai baju ADEL Adyana Elegance. Jawab dalam Bahasa Malaysia yang mesra dan mudah difahami.\n" +
+"PENTING: Sentiasa panggil pelanggan sebagai 'Cik' — JANGAN guna 'akak', 'awak', 'kakak' atau panggilan lain.\n\n" +
     "PRODUK:\n" + senaraiProduk + "\n\n" +
     "PANDUAN SAIZ:\n" + sizeText + "\n\n" +
     "DETAIL PRODUK:\n" + detailText + "\n\n" +
