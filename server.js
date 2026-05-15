@@ -272,6 +272,9 @@ app.post("/webhook", async function(req, res) {
         nota: orderData[10] || ""
       });
       jawapan = jawapan.split("ORDER_CONFIRMED:")[0].trim();
+if (!jawapan) {
+  jawapan = "Terima kasih Cik! Order Cik telah berjaya direkodkan. Kami akan proses segera dan maklumkan status penghantaran. 😊";
+}
     }
 
     // Detect gambar produk
