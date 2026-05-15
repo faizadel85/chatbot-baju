@@ -476,12 +476,16 @@ if (!from || !text) return res.sendStatus(200);
   }).join(" ").toLowerCase();
 
   // Cari nama baju yang pernah disebut dalam perbualan
-  var bajuDipilih = null;
-  sizeChartImages.forEach(function(s) {
-    if (fullHistory.includes(s.Nama.toLowerCase())) {
-      if (!bajuDipilih) bajuDipilih = s;
-    }
-  });
+  // Ambil baju yang paling akhir disebut dalam history
+var bajuDipilih = null;
+var lastIndex = -1;
+sizeChartImages.forEach(function(s) {
+  var idx = fullHistory.lastIndexOf(s.Nama.toLowerCase());
+  if (idx > lastIndex) {
+    lastIndex = idx;
+    bajuDipilih = s;
+  }
+});
 
   if (bajuDipilih) {
     // Hantar size chart baju yang dipilih je
