@@ -329,11 +329,17 @@ app.post("/webhook", async function(req, res) {
         done: false
       };
     } else {
-      followUpQueue[phoneNumber].lastReply = Date.now();
-      followUpQueue[phoneNumber].sent1 = false;
-      followUpQueue[phoneNumber].sent2 = false;
-      followUpQueue[phoneNumber].done = false;
-    }
+  // Jangan reset kalau stage dah "ordered" atau "paid"
+  if (followUpQueue[phoneNumber].stage === "browsing") {
+    followUpQueue[phoneNumber].lastReply = Date.now();
+    followUpQueue[phoneNumber].sent1 = false;
+    followUpQueue[phoneNumber].sent2 = false;
+    followUpQueue[phoneNumber].done = false;
+  } else if (followUpQueue[phoneNumber].stage === "ordered") {
+    // Kalau dah order, update lastReply je tapi jangan reset stage
+    followUpQueue[phoneNumber].lastReply = Date.now();
+  }
+}
 
     // Load sesi
     if (!sesi[phoneNumber]) {
@@ -400,9 +406,12 @@ app.post("/webhook", async function(req, res) {
       if (!jawapan) {
         jawapan = "Terima kasih Cik! Order Cik telah berjaya direkodkan. Kami akan proses segera 😊";
       }
-      // Stage tukar ke paid sebab order dah selesai
-      followUpQueue[phoneNumber].stage = "paid";
-      followUpQueue[phoneNumber].done = true;
+      // Stage tukar ke ordered — tunggu resit
+      followUpQueue[phoneNumber].stage = "ordered";
+      followUpQueue[phoneNumber].orderedAt = Date.now();
+      followUpQueue[phoneNumber].sent3a = false;
+      followUpQueue[phoneNumber].sent3b = false;
+      followUpQueue[phoneNumber].done = false;
     }
 
     // Detect gambar produk
