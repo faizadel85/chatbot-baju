@@ -227,12 +227,23 @@ app.post("/webhook", async function(req, res) {
     var sizeChartImages = await getSheetData("sizeChartImages");
     var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages);
 
-    var response = await claude.messages.create({
+    var response;
+var cuba = 0;
+while (cuba < 3) {
+  try {
+    response = await claude.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 500,
       system: systemPrompt,
       messages: sesi[phoneNumber]
     });
+    break;
+  } catch (retryErr) {
+    cuba++;
+    if (cuba === 3) throw retryErr;
+    await new Promise(function(resolve) { setTimeout(resolve, 2000); });
+  }
+}
 
     var jawapan = response.content[0].text;
     sesi[phoneNumber].push({ role: "assistant", content: jawapan });
