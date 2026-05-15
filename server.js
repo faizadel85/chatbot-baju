@@ -268,10 +268,6 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "- Jika pelanggan tanya gambar, jawab HANYA: 'Ini gambar [nama baju] warna [warna] untuk Cik 😊'\n" +
     "- LARANGAN MUTLAK: JANGAN tulis URL, link, http, www dalam jawapan\n" +
     "- LARANGAN MUTLAK: JANGAN tulis format markdown image dalam jawapan\n" + 
-
-    ![...](...)
-
- dalam jawapan\n" +
    "- LARANGAN MUTLAK: JANGAN cipta URL gambar sendiri\n" +
    "- LARANGAN MUTLAK: JANGAN tulis perkataan 'sistem', 'akan hantar', kurungan [ ] dalam jawapan\n" +
    "- Gambar akan dihantar automatik oleh sistem — kamu hanya sebut nama dan warna produk\n" +
