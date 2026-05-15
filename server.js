@@ -40,13 +40,10 @@ async function simpanSesi(phoneNumber, messages) {
   try {
     var auth = await getGoogleAuth();
     var sheets = google.sheets({ version: "v4", auth });
-
-    // Cari row sedia ada
     var result = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
       range: "Sessions!A:A"
     });
-
     var rows = result.data.values || [];
     var rowIndex = -1;
     for (var i = 0; i < rows.length; i++) {
@@ -55,12 +52,9 @@ async function simpanSesi(phoneNumber, messages) {
         break;
       }
     }
-
     var now = new Date().toISOString();
-    var messagesJson = JSON.stringify(messages.slice(-20)); // Simpan 20 mesej terakhir
-
+    var messagesJson = JSON.stringify(messages.slice(-20));
     if (rowIndex > 0) {
-      // Update row sedia ada
       await sheets.spreadsheets.values.update({
         spreadsheetId: SHEET_ID,
         range: "Sessions!A" + rowIndex + ":C" + rowIndex,
@@ -68,7 +62,6 @@ async function simpanSesi(phoneNumber, messages) {
         resource: { values: [[phoneNumber, now, messagesJson]] }
       });
     } else {
-      // Tambah row baru
       await sheets.spreadsheets.values.append({
         spreadsheetId: SHEET_ID,
         range: "Sessions!A:C",
@@ -86,17 +79,14 @@ async function loadSesi(phoneNumber) {
   try {
     var auth = await getGoogleAuth();
     var sheets = google.sheets({ version: "v4", auth });
-
     var result = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
       range: "Sessions!A:C"
     });
-
     var rows = result.data.values || [];
     for (var i = 0; i < rows.length; i++) {
       if (rows[i][0] === phoneNumber) {
         var messages = JSON.parse(rows[i][2] || "[]");
-        // Semak kalau sesi lebih 24 jam — reset
         var lastUpdated = new Date(rows[i][1]);
         var now = new Date();
         var diff = (now - lastUpdated) / (1000 * 60 * 60);
@@ -145,42 +135,68 @@ async function simpanOrder(data) {
   }
 }
 
-// ===== FOLLOW UP =====
-var followUpQueue = {};
-
-var MSG_FOLLOWUP_1 = "Assalamualaikum 🫶🏻, Cik cari size dan warna apa ya?\n\nAtau nak saya bantu dapatkan size yg sesuai untuk Cik?🥰";
-
-var MSG_FOLLOWUP_2 = "Assalamualaikum! Semoga Cik dalam keadaan baik & semoga urusan kita sama² dipermudahkan hari ini 😊\n\nCik ada tekan link iklan saya dari FB/IG. Saya sangat-sangat hargai respon Cik 💕\n\nCik tengah cari warna dan size apa ya? Ada apa boleh saya bantu?";
-
-var FOLLOWUP_1_MS = 60 * 60 * 1000;
-var FOLLOWUP_2_MS = 24 * 60 * 60 * 1000;
-
-async function hantarFollowUp(phoneNumber, mesej) {
+// ===== HANTAR MESEJ =====
+async function hantarMesej(phoneNumber, mesej) {
   try {
     await axios.post(
       "https://api.wassenger.com/v1/messages",
       { phone: phoneNumber, message: mesej },
       { headers: { Token: WASSENGER_TOKEN } }
     );
-    console.log("Follow up dihantar ke: " + phoneNumber);
+    console.log("Mesej dihantar ke: " + phoneNumber);
   } catch (err) {
-    console.error("Error follow up:", err);
+    console.error("Error hantar mesej:", err);
   }
 }
 
+// ===== STAGE FOLLOW UP =====
+var followUpQueue = {};
+
+var MSG_STAGE1 = "Assalamualaikum 🫶🏻, Cik cari size dan warna apa ya?\n\nAtau nak saya bantu dapatkan size yg sesuai untuk Cik?🥰";
+
+var MSG_STAGE2 = "Assalamualaikum! Semoga Cik dalam keadaan baik & semoga urusan kita sama² dipermudahkan hari ini 😊\n\nCik ada tekan link iklan saya dari FB/IG. Saya sangat-sangat hargai respon Cik 💕\n\nCik tengah cari warna dan size apa ya? Ada apa boleh saya bantu?";
+
+var MSG_STAGE3A = "Salam Cik 😊\n\nSaya nak follow-up order Cik tadi ya. Untuk proceed packing, boleh send resit payment bila sempat 🙏\n\nStock design ni tengah laju keluar hari ni 😊";
+
+var MSG_STAGE3B = "Salam Cik 🌷\n\nOrder Cik masih available ya buat masa sekarang 😊\n\nBila payment dah settle nanti boleh terus send resit dekat saya supaya team boleh reserve & packing cepat ❤️";
+
+// Stage: "browsing" = belum order, "ordered" = dah confirm order, "paid" = dah hantar resit
 setInterval(async function() {
   var now = Date.now();
   for (var phone in followUpQueue) {
     var q = followUpQueue[phone];
     if (q.done) continue;
-    if (!q.sent1 && (now - q.lastReply) >= FOLLOWUP_1_MS) {
-      await hantarFollowUp(phone, MSG_FOLLOWUP_1);
-      followUpQueue[phone].sent1 = true;
+
+    if (q.stage === "browsing") {
+      // Stage 1 — 1 jam
+      if (!q.sent1 && (now - q.lastReply) >= 60 * 60 * 1000) {
+        await hantarMesej(phone, MSG_STAGE1);
+        followUpQueue[phone].sent1 = true;
+        console.log("Stage 1 sent to " + phone);
+      }
+      // Stage 2 — 24 jam
+      if (q.sent1 && !q.sent2 && (now - q.lastReply) >= 24 * 60 * 60 * 1000) {
+        await hantarMesej(phone, MSG_STAGE2);
+        followUpQueue[phone].sent2 = true;
+        followUpQueue[phone].done = true;
+        console.log("Stage 2 sent to " + phone);
+      }
     }
-    if (q.sent1 && !q.sent2 && (now - q.lastReply) >= FOLLOWUP_2_MS) {
-      await hantarFollowUp(phone, MSG_FOLLOWUP_2);
-      followUpQueue[phone].sent2 = true;
-      followUpQueue[phone].done = true;
+
+    if (q.stage === "ordered") {
+      // Stage 3a — 1 jam selepas order
+      if (!q.sent3a && (now - q.orderedAt) >= 60 * 60 * 1000) {
+        await hantarMesej(phone, MSG_STAGE3A);
+        followUpQueue[phone].sent3a = true;
+        console.log("Stage 3a sent to " + phone);
+      }
+      // Stage 3b — 4 jam selepas order
+      if (q.sent3a && !q.sent3b && (now - q.orderedAt) >= 4 * 60 * 60 * 1000) {
+        await hantarMesej(phone, MSG_STAGE3B);
+        followUpQueue[phone].sent3b = true;
+        followUpQueue[phone].done = true;
+        console.log("Stage 3b sent to " + phone);
+      }
     }
   }
 }, 30 * 1000);
@@ -264,30 +280,26 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "  Nama: Adel Adyana Elegance\n" +
     "  No Akaun: 551100323485\n" +
     "- Selepas transfer, minta pelanggan hantar gambar resit dan nama penama akaun bank\n" +
-    "- Kamu BOLEH hantar gambar produk — sistem akan hantar gambar automatik\n" +
-    "- Jika pelanggan tanya gambar, jawab HANYA: 'Ini gambar [nama baju] warna [warna] untuk Cik 😊'\n" +
+    "- Jika pelanggan tanya atau minta tengok gambar/warna produk, jawab: 'Ini gambar [nama baju] warna [warna] untuk Cik 😊'\n" +
     "- LARANGAN MUTLAK: JANGAN tulis URL, link, http, www dalam jawapan\n" +
-    "- LARANGAN MUTLAK: JANGAN tulis format markdown image dalam jawapan\n" + 
-   "- LARANGAN MUTLAK: JANGAN cipta URL gambar sendiri\n" +
-   "- LARANGAN MUTLAK: JANGAN tulis perkataan 'sistem', 'akan hantar', kurungan [ ] dalam jawapan\n" +
-   "- Gambar akan dihantar automatik oleh sistem — kamu hanya sebut nama dan warna produk\n" +
-   "- Jawapan kepada soalan gambar mestilah ayat biasa sahaja\n" +
-   "- Flow order yang BETUL:\n" +
-   "  1. Pelanggan confirm nak beli\n" +
-   "  2. Tanya lokasi penghantaran: Semenanjung atau Sabah/Sarawak\n" +
-   "  3. Kira dan beritahu jumlah postage berdasarkan lokasi dan bilangan pcs\n" +
-   "  4. Tanya kaedah pembayaran: Bank Transfer atau COD\n" +
-   "  5. Bagi info pembayaran dengan jumlah total (harga + postage)\n" +
-   "  6. Tunggu pelanggan hantar resit/bukti bayar\n" +
-   "  7. Bila pelanggan hantar resit, minta details penghantaran (nama, no telefon, alamat, poskod, bandar, negeri)\n" +
-   "  8. Bila semua details lengkap, tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|nota\n" +
-   "- JANGAN minta details penghantaran sebelum pelanggan hantar resit\n" +
-   "- Bila pelanggan bagi details penghantaran, JANGAN tanya semula produk\n" +
-   "- Jika pelanggan tanya size chart, jawab HANYA dengan ayat pendek: 'Ini size chart untuk [nama baju] 😊'\n" +
-   "- JANGAN guna markdown, JANGAN tulis URL dalam teks jawapan\n" +
-   "- Jawapan mesti dalam teks biasa sahaja\n" +
-"- WAJIB: Setiap jawapan mesti ada soalan susulan untuk teruskan perbualan\n" +
-"- Contoh soalan susulan: 'Cik nak tahu lebih lanjut?', 'Ada saiz lain yang Cik minat?', 'Boleh saya bantu Cik dengan apa lagi?'";
+    "- LARANGAN MUTLAK: JANGAN cipta URL gambar sendiri\n" +
+    "- LARANGAN MUTLAK: JANGAN tulis format markdown image dalam jawapan\n" +
+    "- LARANGAN MUTLAK: JANGAN tulis perkataan sistem, akan hantar, kurungan dalam jawapan\n" +
+    "- Flow order yang BETUL:\n" +
+    "  1. Pelanggan confirm nak beli\n" +
+    "  2. Tanya lokasi: Semenanjung atau Sabah/Sarawak\n" +
+    "  3. Kira jumlah postage dan beritahu total\n" +
+    "  4. Tanya kaedah pembayaran: Bank Transfer atau COD\n" +
+    "  5. Bagi info pembayaran dengan jumlah total\n" +
+    "  6. Bila pelanggan hantar resit, tulis ORDER_RECEIPT_RECEIVED dalam jawapan\n" +
+    "  7. Minta details penghantaran (nama, no telefon, alamat, poskod, bandar, negeri)\n" +
+    "  8. Bila semua details lengkap, tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|nota\n" +
+    "- JANGAN minta details penghantaran sebelum pelanggan hantar resit\n" +
+    "- Bila pelanggan bagi details penghantaran, JANGAN tanya semula produk\n" +
+    "- Jika pelanggan tanya size chart, jawab HANYA: 'Ini size chart untuk [nama baju] untuk Cik 😊'\n" +
+    "- WAJIB: Setiap jawapan mesti ada soalan susulan\n" +
+    "- JANGAN guna markdown dalam jawapan\n" +
+    "- Jawapan mesti dalam teks biasa sahaja";
 }
 
 // ===== WEBHOOK =====
@@ -305,15 +317,25 @@ app.post("/webhook", async function(req, res) {
 
     var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "");
 
-    // Reset follow up
-    followUpQueue[phoneNumber] = {
-      lastReply: Date.now(),
-      sent1: false,
-      sent2: false,
-      done: false
-    };
+    // Setup follow up queue
+    if (!followUpQueue[phoneNumber]) {
+      followUpQueue[phoneNumber] = {
+        stage: "browsing",
+        lastReply: Date.now(),
+        sent1: false,
+        sent2: false,
+        sent3a: false,
+        sent3b: false,
+        done: false
+      };
+    } else {
+      followUpQueue[phoneNumber].lastReply = Date.now();
+      followUpQueue[phoneNumber].sent1 = false;
+      followUpQueue[phoneNumber].sent2 = false;
+      followUpQueue[phoneNumber].done = false;
+    }
 
-    // Load sesi dari Google Sheet
+    // Load sesi
     if (!sesi[phoneNumber]) {
       sesi[phoneNumber] = await loadSesi(phoneNumber);
     }
@@ -326,7 +348,7 @@ app.post("/webhook", async function(req, res) {
     var sizeChartImages = await getSheetDataCached("sizeChartImages");
     var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages);
 
-    // Retry 3 kali kalau overloaded
+    // Retry 3 kali
     var response;
     var cuba = 0;
     while (cuba < 3) {
@@ -348,10 +370,17 @@ app.post("/webhook", async function(req, res) {
     var jawapan = response.content[0].text;
     sesi[phoneNumber].push({ role: "assistant", content: jawapan });
 
-    // Simpan sesi ke Google Sheet
+    // Simpan sesi
     await simpanSesi(phoneNumber, sesi[phoneNumber]);
 
-    // Detect dan simpan order
+    // Detect resit diterima — tukar stage ke "paid"
+    if (jawapan.includes("ORDER_RECEIPT_RECEIVED")) {
+      followUpQueue[phoneNumber].stage = "paid";
+      followUpQueue[phoneNumber].done = true;
+      jawapan = jawapan.replace("ORDER_RECEIPT_RECEIVED", "").trim();
+    }
+
+    // Detect order confirmed — tukar stage ke "ordered"
     if (jawapan.includes("ORDER_CONFIRMED:")) {
       var orderData = jawapan.split("ORDER_CONFIRMED:")[1].split("|");
       await simpanOrder({
@@ -369,8 +398,11 @@ app.post("/webhook", async function(req, res) {
       });
       jawapan = jawapan.split("ORDER_CONFIRMED:")[0].trim();
       if (!jawapan) {
-        jawapan = "Terima kasih Cik! Order Cik telah berjaya direkodkan. Kami akan proses segera dan maklumkan status penghantaran. 😊";
+        jawapan = "Terima kasih Cik! Order Cik telah berjaya direkodkan. Kami akan proses segera 😊";
       }
+      // Stage tukar ke paid sebab order dah selesai
+      followUpQueue[phoneNumber].stage = "paid";
+      followUpQueue[phoneNumber].done = true;
     }
 
     // Detect gambar produk
@@ -405,11 +437,7 @@ app.post("/webhook", async function(req, res) {
         { headers: { Token: WASSENGER_TOKEN } }
       );
     } else {
-      await axios.post(
-        "https://api.wassenger.com/v1/messages",
-        { phone: phoneNumber, message: jawapan },
-        { headers: { Token: WASSENGER_TOKEN } }
-      );
+      await hantarMesej(phoneNumber, jawapan);
     }
 
     res.sendStatus(200);
