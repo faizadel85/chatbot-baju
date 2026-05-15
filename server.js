@@ -469,15 +469,30 @@ if (!from || !text) return res.sendStatus(200);
 
     if (tanyaSizeChart) {
   var sizeChartUrls = [];
+
+  // Cari nama baju dalam text semasa ATAU history sesi
+  var fullHistory = text + " " + sesi[phoneNumber].map(function(m) {
+    return m.content;
+  }).join(" ");
+
   sizeChartImages.forEach(function(s) {
-    // Kalau sebut nama baju — hantar yang tu je
-    // Kalau tak sebut nama — hantar semua
-    var namaDisebut = text.toLowerCase().includes(s.Nama.toLowerCase());
+    var namaDisebut = fullHistory.toLowerCase().includes(s.Nama.toLowerCase());
     var adaNamaDlmText = sizeChartImages.some(function(sc) {
       return text.toLowerCase().includes(sc.Nama.toLowerCase());
     });
 
-    if ((adaNamaDlmText && namaDisebut) || (!adaNamaDlmText)) {
+    if (namaDisebut && !adaNamaDlmText) {
+      // Ada dalam history tapi tak sebut dalam text semasa
+      if (s.Gambar_URL) {
+        sizeChartUrls.push({ nama: s.Nama, url: s.Gambar_URL });
+      }
+    } else if (adaNamaDlmText && text.toLowerCase().includes(s.Nama.toLowerCase())) {
+      // Sebut nama dalam text semasa
+      if (s.Gambar_URL) {
+        sizeChartUrls.push({ nama: s.Nama, url: s.Gambar_URL });
+      }
+    } else if (!adaNamaDlmText && !namaDisebut) {
+      // Tak sebut langsung — hantar semua
       if (s.Gambar_URL) {
         sizeChartUrls.push({ nama: s.Nama, url: s.Gambar_URL });
       }
