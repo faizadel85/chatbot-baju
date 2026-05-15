@@ -193,6 +193,9 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "  6. Bila semua details lengkap, tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|nota\n" +
     "- JANGAN minta details penghantaran sebelum pelanggan hantar resit\n" +
     "- Postage: Semenanjung RM8, Sabah/Sarawak RM12\n" +
+    "- Kamu BOLEH hantar gambar produk — sistem akan hantar gambar automatik\n" +
+    "- Jika pelanggan tanya atau minta tengok gambar/warna produk, sebut nama produk dan warna dalam jawapan supaya sistem boleh hantar gambar\n" +
+    "- Contoh: 'Ini gambar Baju Kurung Neesya warna Navy Blue untuk Cik 😊'\n" +
     "- Jika pelanggan tanya size chart, jawab HANYA dengan ayat pendek: 'Ini size chart untuk [nama baju] 😊'\n" +
     "- JANGAN guna markdown, JANGAN tulis URL dalam teks jawapan\n" +
     "- Jawapan mesti dalam teks biasa sahaja";
