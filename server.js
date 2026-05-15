@@ -130,6 +130,28 @@ async function simpanOrder(data) {
       }
     });
     console.log("Order disimpan!");
+// Hantar notif ke admin
+var notifMsg = "🛍️ ORDER BARU!\n\n" +
+  "Nama: " + data.nama + "\n" +
+  "No Tel: " + data.noTel + "\n" +
+  "Produk: " + data.produk + "\n" +
+  "Warna: " + data.warna + "\n" +
+  "Saiz: " + data.saiz + "\n" +
+  "Harga: RM" + data.harga + "\n\n" +
+  "Alamat: " + data.alamat + "\n" +
+  "Poskod: " + data.poskod + "\n" +
+  "Bandar: " + data.bandar + "\n" +
+  "Negeri: " + data.negeri + "\n\n" +
+  "Kaedah Bayar: " + data.kaedahBayar + "\n" +
+  "Penama Akaun: " + data.penamaakaun + "\n" +
+  "Nota: " + data.nota;
+
+await axios.post(
+  "https://api.wassenger.com/v1/messages",
+  { phone: "601123726341", message: notifMsg },
+  { headers: { Token: WASSENGER_TOKEN } }
+);
+console.log("Notif admin dihantar!");
   } catch (err) {
     console.error("Error simpan order:", err);
   }
@@ -293,7 +315,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "  5. Bagi info pembayaran dengan jumlah total\n" +
     "  6. Bila pelanggan hantar resit, tulis ORDER_RECEIPT_RECEIVED dalam jawapan\n" +
     "  7. Minta details penghantaran (nama, no telefon, alamat, poskod, bandar, negeri)\n" +
-    "  8. Bila semua details lengkap, tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|nota\n" +
+    "  8. Bila semua details lengkap, tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|kaedahbayar|penamaakaun|nota\n" +
     "- JANGAN minta details penghantaran sebelum pelanggan hantar resit\n" +
     "- Bila pelanggan bagi details penghantaran, JANGAN tanya semula produk\n" +
     "- Jika pelanggan tanya size chart, jawab HANYA: 'Ini size chart untuk [nama baju] untuk Cik 😊'\n" +
@@ -390,18 +412,20 @@ app.post("/webhook", async function(req, res) {
     if (jawapan.includes("ORDER_CONFIRMED:")) {
       var orderData = jawapan.split("ORDER_CONFIRMED:")[1].split("|");
       await simpanOrder({
-        nama: orderData[0] || "",
-        noTel: orderData[1] || "",
-        alamat: orderData[2] || "",
-        poskod: orderData[3] || "",
-        bandar: orderData[4] || "",
-        negeri: orderData[5] || "",
-        produk: orderData[6] || "",
-        saiz: orderData[7] || "",
-        warna: orderData[8] || "",
-        harga: orderData[9] || "",
-        nota: orderData[10] || ""
-      });
+  nama: orderData[0] || "",
+  noTel: orderData[1] || "",
+  alamat: orderData[2] || "",
+  poskod: orderData[3] || "",
+  bandar: orderData[4] || "",
+  negeri: orderData[5] || "",
+  produk: orderData[6] || "",
+  saiz: orderData[7] || "",
+  warna: orderData[8] || "",
+  harga: orderData[9] || "",
+  kaedahBayar: orderData[10] || "",
+  penamaakaun: orderData[11] || "",
+  nota: orderData[12] || ""
+});
       jawapan = jawapan.split("ORDER_CONFIRMED:")[0].trim();
       if (!jawapan) {
         jawapan = "Terima kasih Cik! Order Cik telah berjaya direkodkan. Kami akan proses segera 😊";
