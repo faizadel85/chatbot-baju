@@ -470,8 +470,17 @@ if (!from || !text) return res.sendStatus(200);
     if (tanyaSizeChart) {
   var sizeChartUrls = [];
   sizeChartImages.forEach(function(s) {
-    if (text.toLowerCase().includes(s.Nama.toLowerCase()) && s.Gambar_URL) {
-      sizeChartUrls.push({ nama: s.Nama, url: s.Gambar_URL });
+    // Kalau sebut nama baju — hantar yang tu je
+    // Kalau tak sebut nama — hantar semua
+    var namaDisebut = text.toLowerCase().includes(s.Nama.toLowerCase());
+    var adaNamaDlmText = sizeChartImages.some(function(sc) {
+      return text.toLowerCase().includes(sc.Nama.toLowerCase());
+    });
+
+    if ((adaNamaDlmText && namaDisebut) || (!adaNamaDlmText)) {
+      if (s.Gambar_URL) {
+        sizeChartUrls.push({ nama: s.Nama, url: s.Gambar_URL });
+      }
     }
   });
 
