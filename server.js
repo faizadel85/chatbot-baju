@@ -265,8 +265,9 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "  No Akaun: 551100323485\n" +
     "- Selepas transfer, minta pelanggan hantar gambar resit dan nama penama akaun bank\n" +
     "- Kamu BOLEH hantar gambar produk — sistem akan hantar gambar automatik\n" +
-    "- Jika pelanggan tanya atau minta tengok gambar/warna produk, jawab HANYA dengan ayat pendek biasa seperti: 'Ini gambar Baju Kurung Neesya warna Navy Blue untuk Cik 😊'\n" +
-    "- JANGAN sekali-kali tulis perkataan 'sistem', 'hantar gambar', kurungan kotak [ ] atau apa-apa technical dalam jawapan\n" +
+    "- Jika pelanggan tanya gambar, jawab: 'Ini gambar [nama baju] warna [warna] untuk Cik 😊'\n" +
+    "- LARANGAN MUTLAK: JANGAN tulis perkataan 'sistem', 'akan hantar', 'gambar akan', kurungan [ ] dalam jawapan\n" +
+    "- LARANGAN MUTLAK: JANGAN explain cara gambar dihantar\n" +
     "- Jawapan kepada soalan gambar mestilah ayat biasa sahaja\n" +
     "- Flow order yang BETUL:\n" +
     "  1. Pelanggan confirm nak beli\n" +
