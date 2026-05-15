@@ -265,7 +265,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "  No Akaun: 551100323485\n" +
     "- Selepas transfer, minta pelanggan hantar gambar resit dan nama penama akaun bank\n" +
     "- Kamu BOLEH hantar gambar produk — sistem akan hantar gambar automatik\n" +
-    "- Jika pelanggan tanya atau minta tengok gambar/warna produk, sebut nama produk dan warna dalam jawapan\n" +
+    "- Jika pelanggan tanya atau minta tengok gambar/warna produk, jawab dengan ayat semula jadi contoh: 'Ini gambar Baju Kurung Neesya warna Navy Blue 😊' — JANGAN tulis '[Sistem akan hantar gambar]' atau ayat dalam kurungan kotak\n" +
     "- Flow order yang BETUL:\n" +
     "  1. Pelanggan confirm nak beli\n" +
     "  2. Tanya lokasi penghantaran: Semenanjung atau Sabah/Sarawak\n" +
