@@ -289,7 +289,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "PANDUAN SAIZ:\n" + sizeText + "\n\n" +
     "DETAIL PRODUK:\n" + detailText + "\n\n" +
     "PERATURAN:\n" +
-    "- Tanya berat badan dan ukuran dada untuk recommend saiz\n" +
+    "- Tanya berat badan (kg) dan ukuran dada (dalam INCHI) untuk recommend saiz\n" +
+    "- Semua ukuran dalam INCHI — bukan cm\n" +
     "- Jika stok = 0, beritahu HABIS STOK\n" +
     "- Saiz 3XL dan 4XL ada tambahan RM10\n" +
     "- Kaedah Pembayaran: Bank Transfer atau COD\n" +
@@ -460,7 +461,31 @@ if (!from || !text) return res.sendStatus(200);
         gambarUrl = p.Gambar_URL;
       }
     });
+// Detect tanya gambar katalog
+var kataKatalog = ["tengok gambar semua", "tunjuk semua design", "ada gambar tak", "boleh tunjuk koleksi", "tengok koleksi", "gambar semua"];
+var tanyaKatalog = kataKatalog.some(function(kata) {
+  return text.toLowerCase().includes(kata);
+});
 
+if (tanyaKatalog) {
+  var katalog = await getSheetDataCached("Katalog");
+  for (var k = 0; k < katalog.length; k++) {
+    if (katalog[k].Gambar_URL) {
+      await axios.post(
+        "https://api.wassenger.com/v1/messages",
+        {
+          phone: phoneNumber,
+          message: katalog[k].Nama,
+          media: { url: katalog[k].Gambar_URL }
+        },
+        { headers: { Token: WASSENGER_TOKEN } }
+      );
+      await new Promise(function(resolve) { setTimeout(resolve, 1000); });
+    }
+  }
+  await hantarMesej(phoneNumber, "Ini semua koleksi terbaru ADEL Adyana Elegance 😊\n\nCik berminat dengan design yang mana? Saya boleh tunjukkan lebih detail warna dan saiz yang ada!");
+  return res.sendStatus(200);
+}
     // Detect size chart
     var kataSizeChart = ["size chart", "carta saiz", "ukuran baju", "size guide"];
     var tanyaSizeChart = kataSizeChart.some(function(kata) {
