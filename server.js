@@ -169,13 +169,13 @@ setInterval(async function() {
 
     if (q.stage === "browsing") {
       // Stage 1 — 1 jam
-      if (!q.sent1 && (now - q.lastReply) >= 60 * 60 * 1000) {
+      if (!q.sent1 && (now - q.lastReply) >= 1 * 60 * 1000) {
         await hantarMesej(phone, MSG_STAGE1);
         followUpQueue[phone].sent1 = true;
         console.log("Stage 1 sent to " + phone);
       }
       // Stage 2 — 24 jam
-      if (q.sent1 && !q.sent2 && (now - q.lastReply) >= 24 * 60 * 60 * 1000) {
+      if (q.sent1 && !q.sent2 && (now - q.lastReply) >= 2 * 60 * 1000) {
         await hantarMesej(phone, MSG_STAGE2);
         followUpQueue[phone].sent2 = true;
         followUpQueue[phone].done = true;
@@ -185,13 +185,13 @@ setInterval(async function() {
 
     if (q.stage === "ordered") {
       // Stage 3a — 1 jam selepas order
-      if (!q.sent3a && (now - q.orderedAt) >= 60 * 60 * 1000) {
+      if (!q.sent3a && (now - q.orderedAt) >= 1 * 60 * 1000) {
         await hantarMesej(phone, MSG_STAGE3A);
         followUpQueue[phone].sent3a = true;
         console.log("Stage 3a sent to " + phone);
       }
       // Stage 3b — 4 jam selepas order
-      if (q.sent3a && !q.sent3b && (now - q.orderedAt) >= 4 * 60 * 60 * 1000) {
+      if (q.sent3a && !q.sent3b && (now - q.orderedAt) >= 2 * 60 * 1000) {
         await hantarMesej(phone, MSG_STAGE3B);
         followUpQueue[phone].sent3b = true;
         followUpQueue[phone].done = true;
