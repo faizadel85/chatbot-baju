@@ -341,6 +341,28 @@ var hasMedia = data.data.hasMedia || data.data.type === "image" || data.data.typ
 // Kalau hantar gambar/media — anggap sebagai resit
 if (!text && hasMedia) {
   var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "");
+/ Detect request penukaran
+var katatukar = [
+  "nak tukar", "nk tukar", "tukar alamat", "tukar baju",
+  "tukar saiz", "tukar size", "tukar warna", "ubah alamat",
+  "ubah baju", "ubah saiz", "ubah size", "ubah warna",
+  "salah alamat", "salah saiz", "salah size", "salah baju",
+  "salah warna", "boleh tukar", "boleh ubah", "change address",
+  "cancel", "batalkan"
+];
+
+var adaPenukaran = katatukar.some(function(kata) {
+  return text.toLowerCase().includes(kata);
+});
+
+if (adaPenukaran) {
+  var notifTukar = "⚠️ PERHATIAN - REQUEST PENUKARAN!\n\n" +
+    "No Tel: " + phoneNumber + "\n" +
+    "Mesej: " + text + "\n\n" +
+    "Sila semak dan hubungi pelanggan segera!";
+  await hantarMesej("601123726341", notifTukar);
+  console.log("Notif penukaran dihantar!");
+}
   if (followUpQueue[phoneNumber] && followUpQueue[phoneNumber].stage === "ordered") {
     followUpQueue[phoneNumber].stage = "paid";
     followUpQueue[phoneNumber].done = true;
