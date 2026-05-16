@@ -314,7 +314,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "  3. Kira jumlah postage dan beritahu total\n" +
     "  4. Tanya kaedah pembayaran: Bank Transfer atau COD\n" +
     "  5. Bagi info pembayaran dengan jumlah total\n" +
-    "  6. Bila pelanggan hantar resit, tulis ORDER_RECEIPT_RECEIVED dalam jawapan\n" +
+    "  6. Bila pelanggan pilih COD, terus tulis ORDER_COD_CONFIRMED dalam jawapan\n" +
+    "  6b. Bila pelanggan hantar resit (Bank Transfer), tulis ORDER_RECEIPT_RECEIVED dalam jawapan\n" +
     "  7. Minta details penghantaran (nama, no telefon, alamat, poskod, bandar, negeri)\n" +
     "  8. Bila semua details lengkap, tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|kaedahbayar|penamaakaun|nota\n" +
     "- JANGAN minta details penghantaran sebelum pelanggan hantar resit\n" +
@@ -414,7 +415,15 @@ if (!from || !text) return res.sendStatus(200);
 
     // Simpan sesi
     await simpanSesi(phoneNumber, sesi[phoneNumber]);
-
+   // Detect COD confirmed — terus tukar stage ke "ordered" tanpa perlu resit
+   if (jawapan.includes("ORDER_COD_CONFIRMED")) {
+     followUpQueue[phoneNumber].stage = "ordered";
+     followUpQueue[phoneNumber].orderedAt = Date.now();
+     followUpQueue[phoneNumber].sent3a = false;
+     followUpQueue[phoneNumber].sent3b = false;
+     followUpQueue[phoneNumber].done = false;
+     jawapan = jawapan.replace("ORDER_COD_CONFIRMED", "").trim();
+   }
     // Detect resit diterima — tukar stage ke "paid"
     if (jawapan.includes("ORDER_RECEIPT_RECEIVED")) {
       followUpQueue[phoneNumber].stage = "paid";
