@@ -341,7 +341,7 @@ var hasMedia = data.data.hasMedia || data.data.type === "image" || data.data.typ
 // Kalau hantar gambar/media — anggap sebagai resit
 if (!text && hasMedia) {
   var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "");
-/ Detect request penukaran
+// Detect request penukaran
 var katatukar = [
   "nak tukar", "nk tukar", "tukar alamat", "tukar baju",
   "tukar saiz", "tukar size", "tukar warna", "ubah alamat",
