@@ -529,7 +529,14 @@ sizeChartImages.forEach(function(s) {
   }
 }
 // Detect tanya gambar katalog
-var kataKatalog = ["tengok gambar semua", "tunjuk semua design", "ada gambar tak", "boleh tunjuk koleksi", "tengok koleksi", "gambar semua"];
+var kataKatalog = [
+  "tengok gambar semua", "tunjuk semua design", "ada gambar tak",
+  "boleh tunjuk koleksi", "tengok koleksi", "gambar semua",
+  "nak tengok gambar", "nak tengok semua", "tunjuk gambar",
+  "ada koleksi", "tengok semua", "show gambar", "gambar koleksi",
+  "semua design", "semua baju", "koleksi baju", "tunjuk koleksi",
+  "ada design", "design apa", "baju apa ada"
+];
 var tanyaKatalog = kataKatalog.some(function(kata) {
   return text.toLowerCase().includes(kata);
 });
