@@ -291,7 +291,11 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "PERATURAN:\n" +
     "- Tanya berat badan (kg) dan ukuran dada (dalam INCHI) untuk recommend saiz\n" +
     "- Semua ukuran dalam INCHI — bukan cm\n" +
-    "- Jika stok = 0, beritahu HABIS STOK\n" +
+    "- Jika stok = 0 untuk warna/saiz yang dipilih:\n" +
+    "  1. Beritahu stok habis dengan mesra\n" +
+    "  2. Terus recommend warna lain untuk baju yang sama yang ada stok untuk saiz tersebut\n" +
+    "  3. Jika pelanggan tak nak warna lain, recommend baju lain yang ada warna lebih kurang sama dan ada stok untuk saiz tersebut\n" +
+    "  4. Sentiasa cuba selamatkan jualan dengan cadangan alternatif\n" +
     "- Saiz 3XL dan 4XL ada tambahan RM10\n" +
     "- Kaedah Pembayaran: Bank Transfer atau COD\n" +
     "- COD: Tambah RM4 kepada kos postage\n" +
