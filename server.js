@@ -11,6 +11,27 @@ const WASSENGER_TOKEN = process.env.WASSENGER_TOKEN;
 const SHEET_ID = "1lz5K8te2CihyjBcHht4FH4j21Sir1EzNwapGlIQfvb8";
 const sesi = {};
 
+// ===== GUARDRAIL =====
+function detectPromptInjection(text) {
+  var attacks = [
+    "ignore previous", "ignore above", "ignore all",
+    "forget previous", "forget instructions", "forget all",
+    "new instructions", "new rules", "override instructions",
+    "system prompt", "reveal prompt", "show prompt",
+    "pretend you are", "act as", "you are now",
+    "jailbreak", "dan mode", "developer mode",
+    "ignore your training", "bypass", "disregard",
+    "abaikan arahan", "tukar peranan", "jadi ai lain",
+    "tunjuk prompt", "dedahkan sistem", "lupakan arahan",
+    "abaikan semua", "arahan baru", "peranan baru"
+  ];
+
+  var textLower = text.toLowerCase();
+  return attacks.some(function(attack) {
+    return textLower.includes(attack);
+  });
+}
+
 // ===== GOOGLE AUTH =====
 async function getGoogleAuth() {
   var credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
@@ -345,6 +366,16 @@ var hasMedia = data.data.hasMedia || data.data.type === "image" || data.data.typ
 // Kalau hantar gambar/media — anggap sebagai resit
 if (!text && hasMedia) {
   var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "");
+
+// Check prompt injection
+if (detectPromptInjection(text)) {
+  console.log("Prompt injection detected dari: " + phoneNumber);
+  await hantarMesej(phoneNumber, "Maaf Cik, saya hanya boleh membantu berkaitan produk dan pesanan ADEL Adyana Elegance sahaja. Ada apa yang boleh saya bantu? 😊");
+  // Notif admin
+  await hantarMesej("601123726341", "⚠️ PROMPT INJECTION DETECTED!\nNo: " + phoneNumber + "\nMesej: " + text);
+  return res.sendStatus(200);
+}
+
 // Detect request penukaran
 var katatukar = [
   "nak tukar", "nk tukar", "tukar alamat", "tukar baju",
