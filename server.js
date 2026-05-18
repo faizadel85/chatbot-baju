@@ -598,6 +598,65 @@ var tanyaKatalog = kataKatalog.some(function(kata) {
   return text.toLowerCase().includes(kata);
 });
 
+/ Semak kalau pelanggan dah pilih baju — hantar warna baju tu je
+if (tanyaKatalog) {
+  var bajuDlmHistory = null;
+  var historyText = sesi[phoneNumber].map(function(m) {
+    return m.content;
+  }).join(" ").toLowerCase();
+
+  products.forEach(function(p) {
+    if (historyText.includes(p.Nama.toLowerCase()) && !bajuDlmHistory) {
+      bajuDlmHistory = p.Nama;
+    }
+  });
+
+  if (bajuDlmHistory) {
+    // Hantar semua warna untuk baju yang dipilih
+    var warnaList = [];
+    products.forEach(function(p) {
+      if (p.Nama.toLowerCase() === bajuDlmHistory.toLowerCase() && p.Gambar_URL) {
+        warnaList.push(p);
+      }
+    });
+
+    for (var w = 0; w < warnaList.length; w++) {
+      await axios.post(
+        "https://api.wassenger.com/v1/messages",
+        {
+          phone: phoneNumber,
+          message: warnaList[w].Warna,
+          media: { url: warnaList[w].Gambar_URL }
+        },
+        { headers: { Token: WASSENGER_TOKEN } }
+      );
+      await new Promise(function(resolve) { setTimeout(resolve, 1000); });
+    }
+    await hantarMesej(phoneNumber, jawapan);
+    return res.sendStatus(200);
+
+  } else {
+    // Tiada baju dipilih — hantar katalog semua design
+    var katalog = await getSheetDataCached("Katalog");
+    for (var k = 0; k < katalog.length; k++) {
+      if (katalog[k].Gambar_URL) {
+        await axios.post(
+          "https://api.wassenger.com/v1/messages",
+          {
+            phone: phoneNumber,
+            message: katalog[k].Nama,
+            media: { url: katalog[k].Gambar_URL }
+          },
+          { headers: { Token: WASSENGER_TOKEN } }
+        );
+        await new Promise(function(resolve) { setTimeout(resolve, 1000); });
+      }
+    }
+    await hantarMesej(phoneNumber, "Ini semua koleksi terbaru ADEL Adyana Elegance 😊\n\nCik berminat dengan design yang mana?");
+    return res.sendStatus(200);
+  }
+}
+
 if (tanyaKatalog) {
   var katalog = await getSheetDataCached("Katalog");
   for (var k = 0; k < katalog.length; k++) {
