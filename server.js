@@ -598,7 +598,7 @@ var tanyaKatalog = kataKatalog.some(function(kata) {
   return text.toLowerCase().includes(kata);
 });
 
-/ Semak kalau pelanggan dah pilih baju — hantar warna baju tu je
+// Semak kalau pelanggan dah pilih baju — hantar warna baju tu je
 if (tanyaKatalog) {
   var bajuDlmHistory = null;
   var historyText = sesi[phoneNumber].map(function(m) {
