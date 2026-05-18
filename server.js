@@ -419,6 +419,9 @@ app.post("/webhook", async function(req, res) {
         followUpQueue[phoneNumber].done = false;
       } else if (followUpQueue[phoneNumber].stage === "ordered") {
         followUpQueue[phoneNumber].lastReply = Date.now();
+        // JANGAN reset sent3a dan sent3b
+      } else if (followUpQueue[phoneNumber].stage === "paid") {
+        // Dah bayar — jangan buat apa-apa
       }
     }
 
