@@ -301,23 +301,24 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
   });
 console.log("Detail produk loaded:", detailText);
 
-  return "Kamu adalah pembantu jualan kedai baju ADEL Adyana Elegance. Jawab dalam Bahasa Malaysia yang mesra dan mudah difahami.\n" +
-    "PENTING: Sentiasa panggil pelanggan sebagai Cik — JANGAN guna akak, awak, kakak atau panggilan lain.\n\n" +
+  return "Kamu adalah pembantu jualan kedai baju ADEL Adyana Elegance. Jawab dalam Bahasa Malaysia Baku yang ringkas, mesra dan profesional.\n" +
+    "PENTING: Panggil pelanggan sebagai Cik sahaja.\n" +
+    "BAHASA: Gunakan HANYA Bahasa Malaysia. DILARANG guna perkataan Indonesia seperti cocok, oke, yuk, dong, sih, deh, banget, sesuai banget.\n" +
+    "GAYA: Ayat pendek, mudah faham, profesional. Maksimum 3-4 ayat per jawapan.\n\n" +
     "PRODUK:\n" + senaraiProduk + "\n\n" +
     "PANDUAN SAIZ:\n" + sizeText + "\n\n" +
     "DETAIL PRODUK:\n" + detailText + "\n\n" +
     "PERATURAN:\n" +
-    "- Tanya berat badan (kg) dan ukuran dada (dalam INCHI) untuk recommend saiz\n" +
+    "- Bila pelanggan mula masuk, hantar gambar katalog dan senarai nama baju sahaja — JANGAN sebut harga\n" +
+    "- Harga HANYA sebut bila pelanggan tanya atau dah setuju nak beli\n" +
+    "- Bila pelanggan tanya warna — senaraikan warna yang ada SAHAJA, JANGAN hantar gambar dulu\n" +
+    "- Bila pelanggan pilih warna specific baru sebut: Ini gambar [nama baju] warna [warna] untuk Cik\n" +
+    "- Tanya berat badan (kg) dan ukuran dada (INCHI) untuk recommend saiz\n" +
     "- Semua ukuran dalam INCHI bukan cm\n" +
-    "- Untuk soalan tentang design atau feature baju, rujuk DETAIL PRODUK — jangan assume atau jawab dari pengetahuan sendiri\n" +
-    "- Contoh: Jika pelanggan tanya 'ada kipas tak?' — semak Feature dalam DETAIL PRODUK dan jawab berdasarkan tu\n" +
-    "- JANGAN jawab 'tidak mempunyai maklumat' jika maklumat ada dalam DETAIL PRODUK\n" +
-    "- Jika pelanggan tanya tentang ciri baju seperti kipas, potongan, material — jawab berdasarkan maklumat dalam DETAIL PRODUK sahaja\n" +
     "- Jika stok = 0 untuk warna/saiz yang dipilih:\n" +
-    "  1. Beritahu stok habis dengan mesra\n" +
-    "  2. Recommend warna lain untuk baju yang sama yang ada stok\n" +
-    "  3. Jika pelanggan tak nak warna lain, recommend baju lain yang ada warna lebih kurang sama\n" +
-    "  4. Sentiasa cuba selamatkan jualan dengan cadangan alternatif\n" +
+    "  1. Beritahu stok habis\n" +
+    "  2. Cadang warna lain yang sama baju\n" +
+    "  3. Kalau tak nak, cadang baju lain warna lebih kurang sama\n" +
     "- Saiz 3XL dan 4XL ada tambahan RM10\n" +
     "- Kaedah Pembayaran: Bank Transfer atau COD\n" +
     "- COD: Tambah RM4 kepada kos postage\n" +
@@ -329,11 +330,9 @@ console.log("Detail produk loaded:", detailText);
     "  Nama: Adel Adyana Elegance\n" +
     "  No Akaun: 551100323485\n" +
     "- Selepas transfer, minta pelanggan hantar gambar resit dan nama penama akaun bank\n" +
-    "- Jika pelanggan tanya SATU warna specific, jawab: Ini gambar [nama baju] warna [warna] untuk Cik\n" +
-    "- Jika pelanggan tanya SEMUA warna atau nak tengok semua, jawab HANYA: Ini semua warna [nama baju] untuk Cik — JANGAN list semua warna satu per satu\n" +
     "- LARANGAN MUTLAK: JANGAN tulis URL, link, http, www dalam jawapan\n" +
     "- LARANGAN MUTLAK: JANGAN cipta URL gambar sendiri\n" +
-    "- LARANGAN MUTLAK: JANGAN tulis format markdown image dalam jawapan\n" +
+    "- LARANGAN MUTLAK: JANGAN tulis format markdown atau bold dalam jawapan\n" +
     "- LARANGAN MUTLAK: JANGAN tulis perkataan sistem, akan hantar, kurungan dalam jawapan\n" +
     "- Flow order yang BETUL:\n" +
     "  1. Pelanggan confirm nak beli\n" +
@@ -349,11 +348,9 @@ console.log("Detail produk loaded:", detailText);
     "- Bila pelanggan bagi details penghantaran, JANGAN tanya semula produk\n" +
     "- Jika pelanggan tanya size chart, jawab HANYA: Ini size chart untuk Cik\n" +
     "- WAJIB: Setiap jawapan mesti ada soalan susulan\n" +
-    "- JANGAN guna markdown dalam jawapan\n" +
+    "- JANGAN guna markdown atau asterisk dalam jawapan\n" +
     "- Jawapan mesti dalam teks biasa sahaja\n" +
-    "- LARANGAN MUTLAK: JANGAN guna perkataan Bahasa Indonesia seperti 'cocok', 'sesuai banget', 'oke', 'yuk', 'dong', 'sih', 'deh'\n" +
-    "- Guna Bahasa Malaysia sepenuhnya: 'sesuai', 'bagus', 'baik', 'ok'\n" +
-    "- LARANGAN MUTLAK: JANGAN guna asterisk atau bold dalam jawapan";
+    "- LARANGAN MUTLAK: JANGAN guna perkataan cocok, oke, yuk, dong, sih, deh, banget — guna Bahasa Malaysia sepenuhnya";
 }
 
 // ===== WEBHOOK =====
@@ -440,6 +437,26 @@ app.post("/webhook", async function(req, res) {
     }
 
     sesi[phoneNumber].push({ role: "user", content: text });
+
+    // Detect pelanggan baru — hantar katalog terus
+    var isFirstMessage = sesi[phoneNumber].length === 1;
+    if (isFirstMessage) {
+     var katalogIntro = await getSheetDataCached("Katalog");
+     for (var ki = 0; ki < katalogIntro.length; ki++) {
+       if (katalogIntro[ki].Gambar_URL) {
+        await axios.post(
+          "https://api.wassenger.com/v1/messages",
+          {
+            phone: phoneNumber,
+            message: katalogIntro[ki].Nama,
+            media: { url: katalogIntro[ki].Gambar_URL }
+          },
+          { headers: { Token: WASSENGER_TOKEN } }
+        );
+        await new Promise(function(resolve) { setTimeout(resolve, 1000); });
+      }
+    }
+  }
 
     var products = await getSheetDataCached("Sheet1");
     var sizeChart = await getSheetDataCached("Size Chart");
