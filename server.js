@@ -601,15 +601,26 @@ var tanyaKatalog = kataKatalog.some(function(kata) {
 // Semak kalau pelanggan dah pilih baju — hantar warna baju tu je
 if (tanyaKatalog) {
   var bajuDlmHistory = null;
-  var historyText = sesi[phoneNumber].map(function(m) {
-    return m.content;
-  }).join(" ").toLowerCase();
+var historyText = sesi[phoneNumber].map(function(m) {
+  return m.content;
+}).join(" ").toLowerCase();
 
-  products.forEach(function(p) {
-    if (historyText.includes(p.Nama.toLowerCase()) && !bajuDlmHistory) {
-      bajuDlmHistory = p.Nama;
-    }
-  });
+// Ambil baju yang paling akhir disebut
+var lastIdx = -1;
+var uniqueNama = [];
+products.forEach(function(p) {
+  if (uniqueNama.indexOf(p.Nama) === -1) {
+    uniqueNama.push(p.Nama);
+  }
+});
+
+uniqueNama.forEach(function(nama) {
+  var idx = historyText.lastIndexOf(nama.toLowerCase());
+  if (idx > lastIdx) {
+    lastIdx = idx;
+    bajuDlmHistory = nama;
+  }
+});
 
   if (bajuDlmHistory) {
     // Hantar semua warna untuk baju yang dipilih
