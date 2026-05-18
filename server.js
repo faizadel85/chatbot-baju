@@ -309,6 +309,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "- Tanya berat badan (kg) dan ukuran dada (dalam INCHI) untuk recommend saiz\n" +
     "- Semua ukuran dalam INCHI bukan cm\n" +
     "- Untuk soalan tentang design atau feature baju, rujuk DETAIL PRODUK — jangan assume atau jawab dari pengetahuan sendiri\n" +
+    "- Contoh: Jika pelanggan tanya 'ada kipas tak?' — semak Feature dalam DETAIL PRODUK dan jawab berdasarkan tu\n" +
+    "- JANGAN jawab 'tidak mempunyai maklumat' jika maklumat ada dalam DETAIL PRODUK\n" +
     "- Jika pelanggan tanya tentang ciri baju seperti kipas, potongan, material — jawab berdasarkan maklumat dalam DETAIL PRODUK sahaja\n" +
     "- Jika stok = 0 untuk warna/saiz yang dipilih:\n" +
     "  1. Beritahu stok habis dengan mesra\n" +
