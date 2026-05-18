@@ -299,6 +299,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
       " | Feature: " + p.Feature +
       " | Sesuai untuk: " + p.Sesuai_Untuk + "\n";
   });
+console.log("Detail produk loaded:", detailText);
 
   return "Kamu adalah pembantu jualan kedai baju ADEL Adyana Elegance. Jawab dalam Bahasa Malaysia yang mesra dan mudah difahami.\n" +
     "PENTING: Sentiasa panggil pelanggan sebagai Cik — JANGAN guna akak, awak, kakak atau panggilan lain.\n\n" +
