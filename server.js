@@ -350,7 +350,10 @@ console.log("Detail produk loaded:", detailText);
     "- Jika pelanggan tanya size chart, jawab HANYA: Ini size chart untuk Cik\n" +
     "- WAJIB: Setiap jawapan mesti ada soalan susulan\n" +
     "- JANGAN guna markdown dalam jawapan\n" +
-    "- Jawapan mesti dalam teks biasa sahaja";
+    "- Jawapan mesti dalam teks biasa sahaja\n" +
+    "- LARANGAN MUTLAK: JANGAN guna perkataan Bahasa Indonesia seperti 'cocok', 'sesuai banget', 'oke', 'yuk', 'dong', 'sih', 'deh'\n" +
+    "- Guna Bahasa Malaysia sepenuhnya: 'sesuai', 'bagus', 'baik', 'ok'\n" +
+    "- LARANGAN MUTLAK: JANGAN guna asterisk atau bold dalam jawapan";
 }
 
 // ===== WEBHOOK =====
