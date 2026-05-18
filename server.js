@@ -368,6 +368,8 @@ app.post("/webhook", async function(req, res) {
 
     // Kalau hantar gambar/media — anggap sebagai resit
     if (!text && hasMedia) {
+      console.log("Media received from: " + phoneNumber);
+      console.log("Current stage: " + (followUpQueue[phoneNumber] ? followUpQueue[phoneNumber].stage : "no queue"));
       if (followUpQueue[phoneNumber] && followUpQueue[phoneNumber].stage === "ordered") {
         followUpQueue[phoneNumber].stage = "paid";
         followUpQueue[phoneNumber].done = true;
