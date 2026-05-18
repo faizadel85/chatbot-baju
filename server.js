@@ -328,7 +328,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail, sizeChartImages) {
     "  Nama: Adel Adyana Elegance\n" +
     "  No Akaun: 551100323485\n" +
     "- Selepas transfer, minta pelanggan hantar gambar resit dan nama penama akaun bank\n" +
-    "- Jika pelanggan tanya atau minta tengok gambar/warna produk, jawab: Ini gambar [nama baju] warna [warna] untuk Cik\n" +
+    "- Jika pelanggan tanya SATU warna specific, jawab: Ini gambar [nama baju] warna [warna] untuk Cik\n" +
+    "- Jika pelanggan tanya SEMUA warna atau nak tengok semua, jawab HANYA: Ini semua warna [nama baju] untuk Cik — JANGAN list semua warna satu per satu\n" +
     "- LARANGAN MUTLAK: JANGAN tulis URL, link, http, www dalam jawapan\n" +
     "- LARANGAN MUTLAK: JANGAN cipta URL gambar sendiri\n" +
     "- LARANGAN MUTLAK: JANGAN tulis format markdown image dalam jawapan\n" +
@@ -466,6 +467,48 @@ app.post("/webhook", async function(req, res) {
 
     // Simpan sesi
     await simpanSesi(phoneNumber, sesi[phoneNumber]);
+
+   // Kalau bot jawab semua warna sekaligus — trigger katalog warna
+   var kataSemuaWarna = ["semua warna", "ini semua warna", "pelbagai warna"];
+   var jawabSemuaWarna = kataSemuaWarna.some(function(kata) {
+     return jawapan.toLowerCase().includes(kata);
+   });
+
+   if (jawabSemuaWarna) {
+     var historyTextWarna = sesi[phoneNumber].map(function(m) {
+       return m.content;
+     }).join(" ").toLowerCase();
+
+     var bajuWarna = null;
+     var lastIdxW = -1;
+     var uniqueNamaW = [];
+     products.forEach(function(p) {
+       if (uniqueNamaW.indexOf(p.Nama) === -1) uniqueNamaW.push(p.Nama);
+     });
+     uniqueNamaW.forEach(function(nama) {
+       var idx = historyTextWarna.lastIndexOf(nama.toLowerCase());
+       if (idx > lastIdxW) { lastIdxW = idx; bajuWarna = nama; }
+     });
+
+     if (bajuWarna) {
+       var warnaListW = [];
+       products.forEach(function(p) {
+         if (p.Nama.toLowerCase() === bajuWarna.toLowerCase() && p.Gambar_URL) {
+           warnaListW.push(p);
+         }
+       });
+       for (var ww = 0; ww < warnaListW.length; ww++) {
+         await axios.post(
+           "https://api.wassenger.com/v1/messages",
+           { phone: phoneNumber, message: warnaListW[ww].Warna, media: { url: warnaListW[ww].Gambar_URL } },
+           { headers: { Token: WASSENGER_TOKEN } }
+        );
+       await new Promise(function(resolve) { setTimeout(resolve, 1000); });
+     }
+     await hantarMesej(phoneNumber, "Ini semua warna " + bajuWarna + " untuk Cik 😊\n\nCik suka warna yang mana?");
+     return res.sendStatus(200);
+   }
+ }
 
     // Detect COD confirmed
     if (jawapan.includes("ORDER_COD_CONFIRMED")) {
