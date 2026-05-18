@@ -443,9 +443,31 @@ app.post("/webhook", async function(req, res) {
     // Detect pelanggan baru — hantar katalog terus
     var isFirstMessage = sesi[phoneNumber].length === 1;
     if (isFirstMessage) {
-     var katalogIntro = await getSheetDataCached("Katalog");
-     for (var ki = 0; ki < katalogIntro.length; ki++) {
-       if (katalogIntro[ki].Gambar_URL) {
+      var katalogIntro = await getSheetDataCached("Katalog");
+
+      // Semak kalau pelanggan sebut nama baju specific
+      var bajuDisebut = null;
+      katalogIntro.forEach(function(k) {
+        if (text.toLowerCase().includes(k.Nama.toLowerCase())) {
+          bajuDisebut = k;
+        }
+      });
+
+      if (bajuDisebut && bajuDisebut.Gambar_URL) {
+        // Hantar gambar katalog baju yang disebut je
+        await axios.post(
+          "https://api.wassenger.com/v1/messages",
+          {
+           phone: phoneNumber,
+           message: bajuDisebut.Nama,
+           media: { url: bajuDisebut.Gambar_URL }
+         },
+      { headers: { Token: WASSENGER_TOKEN } }
+    );
+  } else {
+    // Tak sebut nama baju — hantar semua katalog
+    for (var ki = 0; ki < katalogIntro.length; ki++) {
+      if (katalogIntro[ki].Gambar_URL) {
         await axios.post(
           "https://api.wassenger.com/v1/messages",
           {
@@ -459,6 +481,7 @@ app.post("/webhook", async function(req, res) {
       }
     }
   }
+}
 
     var products = await getSheetDataCached("Sheet1");
     var sizeChart = await getSheetDataCached("Size Chart");
