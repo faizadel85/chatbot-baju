@@ -580,7 +580,39 @@ sizeChartImages.forEach(function(s) {
       await new Promise(function(resolve) { setTimeout(resolve, 1000); });
     }
     await hantarMesej(phoneNumber, jawapan);
+
+    // Check size chart dalam mesej yang sama
+    var kataSizeChartInline = ["size chart", "measurement", "ukuran", "carta saiz", "size guide"];
+    var tanyaSizeChartInline = kataSizeChartInline.some(function(kata) {
+      return text.toLowerCase().includes(kata);
+    });
+
+    if (tanyaSizeChartInline && bajuDlmHistory) {
+      var scMatch = null;
+      sizeChartImages.forEach(function(s) {
+        if (s.Nama.toLowerCase() === bajuDlmHistory.toLowerCase() && s.Gambar_URL) {
+          scMatch = s;
+        }
+      });
+      if (scMatch) {
+        await new Promise(function(resolve) { setTimeout(resolve, 1000); });
+        await axios.post(
+          "https://api.wassenger.com/v1/messages",
+          {
+            phone: phoneNumber,
+            message: "Size chart " + scMatch.Nama + " 😊",
+            media: { url: scMatch.Gambar_URL }
+          },
+          { headers: { Token: WASSENGER_TOKEN } }
+        );
+      }
+    }
+
     return res.sendStatus(200);
+
+  } else {
+
+    // Tiada baju dipilih — hantar katalog semua design
   } else if (sizeChartUrls.length === 1) {
     gambarUrl = sizeChartUrls[0].url;
   }
