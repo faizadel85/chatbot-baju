@@ -444,7 +444,7 @@ app.post("/webhook", async function(req, res) {
     while (cuba < 3) {
       try {
         response = await claude.messages.create({
-          model: "claude-haiku-4-5-20251001",
+          model: "claude-sonnet-4-5",
           max_tokens: 500,
           system: systemPrompt,
           messages: sesi[phoneNumber]
