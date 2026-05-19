@@ -213,16 +213,61 @@ setInterval(async function() {
     if (q.done) continue;
 
     if (q.stage === "browsing") {
-      if (!q.sent1 && (now - q.lastReply) >= 60 * 60 * 1000) {
+      // Stage 1 — hanya hantar kalau TIADA janji
+      if (!q.sent1 && !q.hasJanji && (now - q.lastReply) >= 60 * 60 * 1000) {
         await hantarMesej(phone, MSG_STAGE1);
         followUpQueue[phone].sent1 = true;
         console.log("Stage 1 sent to " + phone);
       }
+
+      // Stage 1b — hanya hantar kalau ADA janji
+      if (q.hasJanji && !q.sent1b && (now - q.janjiAt) >= 3 * 60 * 60 * 1000) {
+        try {
+          var contextResponse = await claude.messages.create({
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 150,
+            temperature: 0,
+            messages: [{
+              role: "user",
+              content: "Tulis follow up WhatsApp yang mesra dalam Bahasa Malaysia. Buyer sebelum ni kata: '" + q.lastContext + "'. Tulis 2-3 ayat pendek, panggil 'Cik', jangan sebut harga, tanya kalau dah boleh proceed. Teks biasa sahaja."
+            }]
+          });
+          var followUp1b = contextResponse.content[0].text;
+          await hantarMesej(phone, followUp1b);
+          followUpQueue[phone].sent1b = true;
+          followUpQueue[phone].sent1 = true; // Mark stage 1 as done juga
+          console.log("Stage 1b context sent to " + phone);
+        } catch (err) {
+          console.error("Error stage 1b:", err);
+        }
+      }
+
+      // Stage 2 — 24 jam
       if (q.sent1 && !q.sent2 && (now - q.lastReply) >= 24 * 60 * 60 * 1000) {
         await hantarMesej(phone, MSG_STAGE2);
         followUpQueue[phone].sent2 = true;
         followUpQueue[phone].done = true;
         console.log("Stage 2 sent to " + phone);
+      }
+    }
+     // Stage 1b — 3 jam selepas janji, generate context follow up
+     if (q.hasJanji && !q.sent1b && (now - q.janjiAt) >= 3 * 60 * 60 * 1000) {
+       try {
+         var contextResponse = await claude.messages.create({
+           model: "claude-haiku-4-5-20251001",
+           max_tokens: 150,
+           temperature: 0,
+           messages: [{
+             role: "user",
+             content: "Tulis follow up WhatsApp yang mesra dalam Bahasa Malaysia. Buyer sebelum ni kata: '" + q.lastContext + "'. Tulis 2-3 ayat pendek, panggil 'Cik', jangan sebut harga, tanya kalau dah boleh proceed. Teks biasa sahaja."
+          }]
+        });
+        var followUp1b = contextResponse.content[0].text;
+        await hantarMesej(phone, followUp1b);
+        followUpQueue[phone].sent1b = true;
+        console.log("Stage 1b context sent to " + phone);
+      } catch (err) {
+        console.error("Error stage 1b:", err);
       }
     }
 
@@ -429,9 +474,13 @@ app.post("/webhook", async function(req, res) {
         stage: "browsing",
         lastReply: Date.now(),
         sent1: false,
+        sent1b: false,
         sent2: false,
         sent3a: false,
         sent3b: false,
+        hasJanji: false,
+        lastContext: "",
+        janjiAt: null,
         done: false
       };
     } else {
@@ -454,6 +503,26 @@ app.post("/webhook", async function(req, res) {
     }
 
     sesi[phoneNumber].push({ role: "user", content: text });
+    // Detect buyer bagi alasan/janji
+    var kataJanji = [
+      "kejap", "sat", "jap", "sekejap", "nanti", "later",
+      "tanya", "confirm", "check", "tengok dulu", "fikir dulu",
+      "dengan anak", "dengan suami", "dengan isteri", "dengan husband",
+      "dengan wife", "dengan family", "dengan mak", "dengan ayah",
+      "balik rumah", "balik kerja", "petang", "malam", "esok",
+      "insyaallah", "ok nanti"
+    ];
+
+    var adaJanji = kataJanji.some(function(kata) {
+      return text.toLowerCase().includes(kata);
+    });
+
+    if (adaJanji && followUpQueue[phoneNumber] && followUpQueue[phoneNumber].stage === "browsing") {
+      followUpQueue[phoneNumber].hasJanji = true;
+      followUpQueue[phoneNumber].lastContext = text;
+      followUpQueue[phoneNumber].janjiAt = Date.now();
+      console.log("Buyer bagi janji: " + phoneNumber);
+    }
 
     // Detect pelanggan baru — hantar katalog terus
     var isFirstMessage = sesi[phoneNumber].length === 1;
