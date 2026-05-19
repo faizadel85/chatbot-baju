@@ -366,6 +366,7 @@ app.post("/webhook", async function(req, res) {
     var from = data.data.chatId || data.data.from || "";
     var text = data.data.body || data.data.text || "";
     var hasMedia = data.data.hasMedia || data.data.type === "image" || data.data.type === "document";
+    var isVoice = data.data.type === "audio" || data.data.type === "ptt";
     var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "");
 
     // Kalau hantar gambar/media — anggap sebagai resit
@@ -383,6 +384,12 @@ app.post("/webhook", async function(req, res) {
       }
       return res.sendStatus(200);
     }
+
+   // Detect voice message
+   if (!text && isVoice) {
+     await hantarMesej(phoneNumber, "Maaf Cik, saya tidak dapat dengar voice note. Boleh Cik taip mesej anda? 😊");
+     return res.sendStatus(200);
+   }
 
     if (!from || !text) return res.sendStatus(200);
 
