@@ -227,12 +227,12 @@ setInterval(async function() {
     }
 
     if (q.stage === "ordered") {
-      if (!q.sent3a && (now - q.orderedAt) >= 60 * 60 * 1000) {
+      if (!q.sent3a && (now - q.orderedAt) >= 3 * 60 * 60 * 1000) {
         await hantarMesej(phone, MSG_STAGE3A);
         followUpQueue[phone].sent3a = true;
         console.log("Stage 3a sent to " + phone);
       }
-      if (q.sent3a && !q.sent3b && (now - q.orderedAt) >= 4 * 60 * 60 * 1000) {
+      if (q.sent3a && !q.sent3b && (now - q.orderedAt) >= 24 * 60 * 60 * 1000) {
         await hantarMesej(phone, MSG_STAGE3B);
         followUpQueue[phone].sent3b = true;
         followUpQueue[phone].done = true;
