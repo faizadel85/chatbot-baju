@@ -373,27 +373,16 @@ app.post("/webhook", async function(req, res) {
       console.log("Media received from: " + phoneNumber);
       console.log("Current stage: " + (followUpQueue[phoneNumber] ? followUpQueue[phoneNumber].stage : "no queue"));
 
-     // Kalau queue tak wujud atau stage ordered — mark as paid
-     if (!followUpQueue[phoneNumber]) {
-       followUpQueue[phoneNumber] = {
-         stage: "paid",
-         done: true,
-         lastReply: Date.now(),
-         sent1: true,
-         sent2: true,
-        sent3a: true,
-        sent3b: true
-      };
-    } else {
-      followUpQueue[phoneNumber].stage = "paid";
-      followUpQueue[phoneNumber].done = true;
-      followUpQueue[phoneNumber].sent3a = true;
-      followUpQueue[phoneNumber].sent3b = true;
+      if (followUpQueue[phoneNumber] && followUpQueue[phoneNumber].stage === "ordered") {
+        followUpQueue[phoneNumber].stage = "paid";
+        followUpQueue[phoneNumber].done = true;
+        followUpQueue[phoneNumber].sent3a = true;
+        followUpQueue[phoneNumber].sent3b = true;
+        console.log("Stage tukar ke paid untuk: " + phoneNumber);
+        await hantarMesej(phoneNumber, "Terima kasih Cik! Resit dah kami terima. Boleh Cik berikan nama penuh dan alamat penghantaran? 😊");
+      }
+      return res.sendStatus(200);
     }
-    console.log("Stage tukar ke paid untuk: " + phoneNumber);
-    await hantarMesej(phoneNumber, "Terima kasih Cik! Resit dah kami terima. Boleh Cik berikan nama penuh dan alamat penghantaran? 😊");
-    return res.sendStatus(200);
-  }
 
     if (!from || !text) return res.sendStatus(200);
 
