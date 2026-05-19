@@ -370,14 +370,28 @@ app.post("/webhook", async function(req, res) {
     if (!text && hasMedia) {
       console.log("Media received from: " + phoneNumber);
       console.log("Current stage: " + (followUpQueue[phoneNumber] ? followUpQueue[phoneNumber].stage : "no queue"));
-      if (followUpQueue[phoneNumber] && followUpQueue[phoneNumber].stage === "ordered") {
-        followUpQueue[phoneNumber].stage = "paid";
-        followUpQueue[phoneNumber].done = true;
-        console.log("Resit diterima dari: " + phoneNumber);
-        await hantarMesej(phoneNumber, "Terima kasih Cik! Resit dah kami terima. Boleh Cik berikan nama penuh dan alamat penghantaran? 😊");
-      }
-      return res.sendStatus(200);
+
+     // Kalau queue tak wujud atau stage ordered — mark as paid
+     if (!followUpQueue[phoneNumber]) {
+       followUpQueue[phoneNumber] = {
+         stage: "paid",
+         done: true,
+         lastReply: Date.now(),
+         sent1: true,
+         sent2: true,
+        sent3a: true,
+        sent3b: true
+      };
+    } else {
+      followUpQueue[phoneNumber].stage = "paid";
+      followUpQueue[phoneNumber].done = true;
+      followUpQueue[phoneNumber].sent3a = true;
+      followUpQueue[phoneNumber].sent3b = true;
     }
+    console.log("Stage tukar ke paid untuk: " + phoneNumber);
+    await hantarMesej(phoneNumber, "Terima kasih Cik! Resit dah kami terima. Boleh Cik berikan nama penuh dan alamat penghantaran? 😊");
+    return res.sendStatus(200);
+  }
 
     if (!from || !text) return res.sendStatus(200);
 
@@ -596,11 +610,10 @@ app.post("/webhook", async function(req, res) {
       if (!jawapan) {
         jawapan = "Terima kasih Cik! Order Cik telah berjaya direkodkan. Kami akan proses segera 😊";
       }
-      followUpQueue[phoneNumber].stage = "ordered";
-      followUpQueue[phoneNumber].orderedAt = Date.now();
-      followUpQueue[phoneNumber].sent3a = false;
-      followUpQueue[phoneNumber].sent3b = false;
-      followUpQueue[phoneNumber].done = false;
+      followUpQueue[phoneNumber].stage = "paid";
+      followUpQueue[phoneNumber].done = true;
+      followUpQueue[phoneNumber].sent3a = true;
+      followUpQueue[phoneNumber].sent3b = true;
     }
 
     // ===== DETECT SIZE CHART =====
