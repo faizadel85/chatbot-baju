@@ -617,7 +617,12 @@ app.post("/webhook", async function(req, res) {
     }
 
     // ===== DETECT SIZE CHART =====
-    var kataSizeChart = ["size chart", "measurement", "carta saiz", "ukuran baju", "size guide"];
+    var kataSizeChart = [
+      "size chart", "measurement", "carta saiz", "ukuran baju", "size guide",
+      "size", "saiz chart", "chart", "ukuran", "measurement chart",
+      "boleh tgk size", "tunjuk size", "size apa", "size berapa",
+      "tgk chart", "nk tgk size", "nak tgk size", "chart size"
+    ];
     var tanyaSizeChart = kataSizeChart.some(function(kata) {
       return text.toLowerCase().includes(kata);
     });
