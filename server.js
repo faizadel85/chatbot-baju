@@ -363,12 +363,14 @@ app.post("/webhook", async function(req, res) {
     if (data.event !== "message:in:new") return res.sendStatus(200);
     if (data.data.fromMe) return res.sendStatus(200);
 
-    var from = data.data.chatId || data.data.from || "";
-    var text = data.data.body || data.data.text || "";
+    var from = data.data.chatId || data.data.from || 
+           data.data.chat?.id || data.data.contact?.wid || "";
+    var text = data.data.body || data.data.text || 
+           data.data.caption || data.data.message || "";
     console.log("Full webhook data:", JSON.stringify(data, null, 2));
     var hasMedia = data.data.hasMedia || data.data.type === "image" || data.data.type === "document";
     var isVoice = data.data.type === "audio" || data.data.type === "ptt";
-    var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "");
+    var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "").replace("@lid", "");
 
     // Kalau hantar gambar/media — anggap sebagai resit
     if (!text && hasMedia) {
