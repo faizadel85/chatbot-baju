@@ -159,7 +159,9 @@ async function simpanOrder(data) {
       "Produk: " + (data.produk || "") + "\n" +
       "Warna: " + (data.warna || "") + "\n" +
       "Saiz: " + (data.saiz || "") + "\n" +
-      "Harga: RM" + (data.harga || "") + "\n\n" +
+      "Harga: RM" + (data.harga || "") + "\n" +
+      "Postage: RM" + (data.postage || "") + "\n" +
+      "Total: RM" + (data.total || "") + "\n\n" +
       "Alamat: " + (data.alamat || "") + "\n" +
       "Poskod: " + (data.poskod || "") + "\n" +
       "Bandar: " + (data.bandar || "") + "\n" +
@@ -343,7 +345,7 @@ console.log("Detail produk loaded:", detailText);
     "  6. Bila pelanggan pilih COD, terus tulis ORDER_COD_CONFIRMED dalam jawapan\n" +
     "  6b. Bila pelanggan hantar resit Bank Transfer, tulis ORDER_RECEIPT_RECEIVED dalam jawapan\n" +
     "  7. Minta details penghantaran (nama, no telefon, alamat, poskod, bandar, negeri)\n" +
-    "  8. Bila semua details lengkap, tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|kaedahbayar|penamaakaun|nota\n" +
+    "  8. Bila semua details lengkap, tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|postage|total|kaedahbayar|penamaakaun|nota\n" +
     "- JANGAN minta details penghantaran sebelum pelanggan hantar resit atau confirm COD\n" +
     "- Bila pelanggan bagi details penghantaran, JANGAN tanya semula produk\n" +
     "- Jika pelanggan tanya size chart, jawab HANYA: Ini size chart untuk Cik\n" +
@@ -602,9 +604,11 @@ app.post("/webhook", async function(req, res) {
         saiz: orderData[7] || "",
         warna: orderData[8] || "",
         harga: orderData[9] || "",
-        kaedahBayar: orderData[10] || "",
-        penamaakaun: orderData[11] || "",
-        nota: orderData[12] || ""
+        postage: orderData[10] || "",
+        total: orderData[11] || "",
+        kaedahBayar: orderData[12] || "",
+        penamaakaun: orderData[13] || "",
+        nota: orderData[14] || ""
       });
       jawapan = jawapan.split("ORDER_CONFIRMED:")[0].trim();
       if (!jawapan) {
