@@ -365,7 +365,7 @@ app.post("/webhook", async function(req, res) {
 
     var from = data.data.chatId || data.data.from || "";
     var text = data.data.body || data.data.text || "";
-    console.log("Raw message from: " + phoneNumber + " | text: " + text);
+    console.log("Full webhook data:", JSON.stringify(data, null, 2));
     var hasMedia = data.data.hasMedia || data.data.type === "image" || data.data.type === "document";
     var isVoice = data.data.type === "audio" || data.data.type === "ptt";
     var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "");
