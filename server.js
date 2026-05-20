@@ -376,7 +376,7 @@ setInterval(async function() {
 // ===== GOOGLE SHEET =====
 async function getSheetData(sheetName) {
   try {
-    var url = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(sheetName);
+    var url = ...
     var response = await axios.get(url);
     var lines = response.data.split("\n");
     var headers = lines[0].split(",").map(function(h) { return h.replace(/"/g, "").trim(); });
@@ -388,6 +388,8 @@ async function getSheetData(sheetName) {
       for (var j = 0; j < headers.length; j++) {
         row[headers[j]] = values[j] || "";
       }
+      // Buang row yang takde Nama
+      if (sheetName === "Sheet1" && !row.Nama) continue;
       rows.push(row);
     }
     return rows;
