@@ -224,7 +224,7 @@ setInterval(async function() {
       if (q.hasJanji && !q.sent1b && (now - q.janjiAt) >= 3 * 60 * 60 * 1000) {
         try {
           var contextResponse = await claude.messages.create({
-            model: "claude-haiku-4-5-20251001",
+            model: "claude-haiku-4-5",
             max_tokens: 150,
             temperature: 0,
             messages: [{
@@ -254,7 +254,7 @@ setInterval(async function() {
      if (q.hasJanji && !q.sent1b && (now - q.janjiAt) >= 3 * 60 * 60 * 1000) {
        try {
          var contextResponse = await claude.messages.create({
-           model: "claude-haiku-4-5-20251001",
+           model: "claude-haiku-4-5",
            max_tokens: 150,
            temperature: 0,
            messages: [{
@@ -589,7 +589,7 @@ app.post("/webhook", async function(req, res) {
     while (cuba < 3) {
       try {
         response = await claude.messages.create({
-          model: "claude-haiku-4-5-20251001",
+          model: "claude-haiku-4-5",
           max_tokens: 500,
           temperature: 0,
           system: systemPrompt,
