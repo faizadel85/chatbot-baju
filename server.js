@@ -269,6 +269,7 @@ function detectGambarDariText(text, products, sizeChartImages) {
   var bajuFound = null;
 
   products.forEach(function(p) {
+    if (!p.Nama || !p.Warna) return;
     if (textLower.includes(p.Nama.toLowerCase()) && textLower.includes(p.Warna.toLowerCase())) {
       if (!bajuFound) {
         bajuFound = p.Nama;
@@ -613,6 +614,7 @@ app.post("/webhook", async function(req, res) {
    if (gambarDetect.type === null) {
      var uniqueNamaCheck = [];
      products.forEach(function(p) {
+       if (!p.Nama) return;
        if (uniqueNamaCheck.indexOf(p.Nama) === -1) uniqueNamaCheck.push(p.Nama);
      });
   
@@ -675,6 +677,7 @@ app.post("/webhook", async function(req, res) {
       var lastIdxK = -1;
       var uniqueNamaK = [];
       products.forEach(function(p) {
+        if (!p.Nama) return;
         if (uniqueNamaK.indexOf(p.Nama) === -1) uniqueNamaK.push(p.Nama);
       });
       uniqueNamaK.forEach(function(nama) {
@@ -697,6 +700,7 @@ app.post("/webhook", async function(req, res) {
       if (bajuHistory) {
         var warnaListK = [];
         products.forEach(function(p) {
+          if (!p.Nama) return;
           if (p.Nama.toLowerCase() === bajuHistory.toLowerCase() && p.Gambar_URL) {
             warnaListK.push(p);
           }
@@ -722,6 +726,7 @@ app.post("/webhook", async function(req, res) {
       // Hantar gambar warna specific yang disebut
       var produkSpesifik = null;
       products.forEach(function(p) {
+        if (!p.Nama) return;
         if (p.Nama.toLowerCase() === gambarDetect.data.nama.toLowerCase() &&
             p.Warna.toLowerCase() === gambarDetect.data.warna.toLowerCase() &&
             p.Gambar_URL) {
@@ -755,6 +760,7 @@ app.post("/webhook", async function(req, res) {
      // Semak warna yang disebut buyer ada dalam sheet tak
      var warnaAvailable = [];
      products.forEach(function(p) {
+       if (!p.Nama) return;
        if (p.Nama.toLowerCase() === bajuTanya.toLowerCase()) {
         warnaAvailable.push(p.Warna);
        }
@@ -783,6 +789,7 @@ app.post("/webhook", async function(req, res) {
       var lastIdxWarna = -1;
       var uniqueNamaWarna = [];
       products.forEach(function(p) {
+        if (!p.Nama) return;
         if (uniqueNamaWarna.indexOf(p.Nama) === -1) uniqueNamaWarna.push(p.Nama);
       });
       uniqueNamaWarna.forEach(function(nama) {
@@ -804,6 +811,7 @@ app.post("/webhook", async function(req, res) {
       var produkWarna = null;
       if (bajuForWarna) {
         products.forEach(function(p) {
+          if (!p.Nama) return;
           if (p.Nama.toLowerCase() === bajuForWarna.toLowerCase() &&
               p.Warna.toLowerCase().includes(gambarDetect.data.warna.toLowerCase()) &&
               p.Gambar_URL) {
@@ -858,6 +866,7 @@ app.post("/webhook", async function(req, res) {
     var lastIdxWS = -1;
     var uniqueNamaWS = [];
     products.forEach(function(p) {
+      if (!p.Nama) return;
       if (uniqueNamaWS.indexOf(p.Nama) === -1) uniqueNamaWS.push(p.Nama);
     });
     uniqueNamaWS.forEach(function(nama) {
@@ -870,6 +879,7 @@ app.post("/webhook", async function(req, res) {
     if (bajuWarnaSenarai) {
       var warnaListSenarai = [];
       products.forEach(function(p) {
+        if (!p.Nama) return;
         if (p.Nama.toLowerCase() === bajuWarnaSenarai.toLowerCase() && p.Gambar_URL) {
           warnaListSenarai.push(p);
         }
