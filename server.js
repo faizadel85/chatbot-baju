@@ -251,7 +251,10 @@ function detectGambarDariText(text, products, sizeChartImages) {
     "ada design", "design apa", "baju apa ada", "semua warna",
     "tunjuk semua warna", "warna apa ada", "ada warna apa",
     "warna yang ada", "pilihan warna", "warna lain", "contoh", "ada contoh", "tgk contoh", "tengok contoh",
-"gambar tak", "ada gambar", "tunjuk", "nak tengok"
+    "gambar tak", "ada gambar", "tunjuk", "nak tengok", "nsk tengok", "nk tengok", "nk tgk", "nak tgk",
+    "nk tengok warna", "tgk warna", "tengok warna",
+    "nak tengok warna", "nk tgk warna", "ada warna", "warna apa", "tengok warna", "tgk warna",
+    "warna yang ada", "pilihan warna", "warna lain", "warna ni"
   ];
   var tanyaKatalog = kataKatalog.some(function(kata) {
     return textLower.includes(kata);
