@@ -532,10 +532,20 @@ app.post("/webhook", async function(req, res) {
       // Semak kalau pelanggan sebut nama baju specific
       var bajuDisebut = null;
       katalogIntro.forEach(function(k) {
-        if (text.toLowerCase().includes(k.Nama.toLowerCase())) {
-          bajuDisebut = k;
-        }
+        // Check nama penuh atau sebahagian nama
+        var namaKatalog = k.Nama.toLowerCase();
+        var textLower = text.toLowerCase();
+  
+      // Extract keyword dari nama baju (contoh: "Melissa" dari "Baju Kurung Melissa")
+      var keywords = namaKatalog.split(" ");
+      var found = keywords.some(function(keyword) {
+        return keyword.length > 3 && textLower.includes(keyword);
       });
+  
+      if (found || textLower.includes(namaKatalog)) {
+        bajuDisebut = k;
+      }
+    });
 
       if (bajuDisebut && bajuDisebut.Gambar_URL) {
         // Hantar gambar katalog baju yang disebut je
