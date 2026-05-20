@@ -376,7 +376,7 @@ setInterval(async function() {
 // ===== GOOGLE SHEET =====
 async function getSheetData(sheetName) {
   try {
-    var url = ...
+    var url = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(sheetName);
     var response = await axios.get(url);
     var lines = response.data.split("\n");
     var headers = lines[0].split(",").map(function(h) { return h.replace(/"/g, "").trim(); });
