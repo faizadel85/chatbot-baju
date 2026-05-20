@@ -525,7 +525,7 @@ app.post("/webhook", async function(req, res) {
     }
 
     // Detect pelanggan baru — hantar katalog terus
-    var isFirstMessage = sesi[phoneNumber].length === 1;
+    var isFirstMessage = false;
     if (isFirstMessage) {
       var katalogIntro = await getSheetDataCached("Katalog");
 
