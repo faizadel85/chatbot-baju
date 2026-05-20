@@ -253,7 +253,7 @@ function detectGambarDariText(text, products, sizeChartImages) {
     "warna yang ada", "pilihan warna", "warna lain", "contoh", "ada contoh", "tgk contoh", "tengok contoh",
     "gambar tak", "ada gambar", "tunjuk", "nak tengok", "nsk tengok", "nk tengok", "nk tgk", "nak tgk",
     "nk tengok warna", "tgk warna", "tengok warna",
-    "nak tengok warna", "nk tgk warna", "ada warna", "warna apa", "tengok warna", "tgk warna",
+    "nak tengok warna", "nk tgk warna", "warna apa", "tengok warna", "tgk warna",
     "warna yang ada", "pilihan warna", "warna lain", "warna ni"
   ];
   var tanyaKatalog = kataKatalog.some(function(kata) {
@@ -609,6 +609,29 @@ app.post("/webhook", async function(req, res) {
     // ===== DETECT GAMBAR DARI TEXT BUYER (CODE-BASED) =====
     var gambarDetect = detectGambarDariText(text, products, sizeChartImages);
 
+   // Check kalau buyer tanya warna specific yang mungkin takde
+   if (gambarDetect.type === null) {
+     var uniqueNamaCheck = [];
+     products.forEach(function(p) {
+       if (uniqueNamaCheck.indexOf(p.Nama) === -1) uniqueNamaCheck.push(p.Nama);
+     });
+  
+     var bajuDisebut2 = null;
+     uniqueNamaCheck.forEach(function(nama) {
+       if (text.toLowerCase().includes(nama.toLowerCase())) {
+        bajuDisebut2 = nama;
+       }
+     });
+
+     if (bajuDisebut2 && (text.toLowerCase().includes("warna") || 
+         text.toLowerCase().includes("color") || 
+         text.toLowerCase().includes("colour") ||
+         text.toLowerCase().includes("ada") )) {
+       gambarDetect.type = "tanya_warna_specific";
+       gambarDetect.data = { nama: bajuDisebut2 };
+     }
+   }
+
     if (gambarDetect.type === "sizechart") {
       // Hantar size chart berdasarkan baju dalam history
       var fullHistory = sesi[phoneNumber].map(function(m) { return m.content; }).join(" ").toLowerCase();
@@ -726,6 +749,34 @@ app.post("/webhook", async function(req, res) {
     }
 
     if (gambarDetect.type === "warna_sahaja") {
+    if (gambarDetect.type === "tanya_warna_specific") {
+     var bajuTanya = gambarDetect.data.nama;
+  
+     // Semak warna yang disebut buyer ada dalam sheet tak
+     var warnaAvailable = [];
+     products.forEach(function(p) {
+       if (p.Nama.toLowerCase() === bajuTanya.toLowerCase()) {
+        warnaAvailable.push(p.Warna);
+       }
+     });
+
+    // Tambah info warna available dalam system prompt untuk Claude jawab
+    var extraInstruction = "Pelanggan tanya warna untuk " + bajuTanya + ". Warna yang ada: " + warnaAvailable.join(", ") + ". Kalau warna yang ditanya takde, beritahu dengan mesra dan cadang warna yang ada.";
+  
+    var twResponse = await claude.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 300,
+      temperature: 0,
+      system: systemPrompt + "\n\nMAKLUMAT TAMBAHAN: " + extraInstruction,
+      messages: sesi[phoneNumber]
+    });
+    var twJawapan = twResponse.content[0].text;
+    sesi[phoneNumber].push({ role: "assistant", content: twJawapan });
+    await simpanSesi(phoneNumber, sesi[phoneNumber]);
+    await hantarMesej(phoneNumber, twJawapan);
+    return res.sendStatus(200);
+  }
+
       // Semak baju dari history, hantar gambar warna tersebut
       var historyForWarna = sesi[phoneNumber].map(function(m) { return m.content; }).join(" ").toLowerCase();
       var bajuForWarna = null;
@@ -880,8 +931,22 @@ app.post("/webhook", async function(req, res) {
       followUpQueue[phoneNumber].sent3b = true;
     }
 
-    await hantarMesej(phoneNumber, jawapan);
-    res.sendStatus(200);
+    await hantarMesej(phoneNumber, twJawapan);
+
+    // Hantar gambar katalog baju yang ditanya
+    var katalogBaju = null;
+    katalog.forEach(function(k) {
+      if (k.Nama.toLowerCase().includes(bajuTanya.toLowerCase()) ||
+          bajuTanya.toLowerCase().includes(k.Nama.toLowerCase())) {
+        katalogBaju = k;
+      }
+    });
+
+    if (katalogBaju && katalogBaju.Gambar_URL) {
+      await new Promise(function(resolve) { setTimeout(resolve, 1000); });
+      await hantarGambar(phoneNumber, katalogBaju.Nama, katalogBaju.Gambar_URL);
+    }
+    return res.sendStatus(200);
 
   } catch (err) {
     console.error(err);
