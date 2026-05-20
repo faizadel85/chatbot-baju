@@ -791,6 +791,46 @@ app.post("/webhook", async function(req, res) {
 
     var jawapan = response.content[0].text;
     sesi[phoneNumber].push({ role: "assistant", content: jawapan });
+   // Detect kalau bot senarai warna — terus hantar semua gambar warna
+   var adaSenaraWarna = jawapan.toLowerCase().includes("warna yang ada") || 
+                        jawapan.toLowerCase().includes("warna yang tersedia") ||
+                        jawapan.toLowerCase().includes("warna yang kami ada") ||
+                        jawapan.toLowerCase().includes("pilihan warna");
+
+   if (adaSenaraWarna) {
+     sesi[phoneNumber].push({ role: "assistant", content: jawapan });
+     await simpanSesi(phoneNumber, sesi[phoneNumber]);
+  
+    // Cari baju dalam history
+    var historyWarnaSenarai = sesi[phoneNumber].map(function(m) { return m.content; }).join(" ").toLowerCase();
+    var bajuWarnaSenarai = null;
+    var lastIdxWS = -1;
+    var uniqueNamaWS = [];
+    products.forEach(function(p) {
+      if (uniqueNamaWS.indexOf(p.Nama) === -1) uniqueNamaWS.push(p.Nama);
+    });
+    uniqueNamaWS.forEach(function(nama) {
+      var idx = historyWarnaSenarai.lastIndexOf(nama.toLowerCase());
+      if (idx > lastIdxWS) { lastIdxWS = idx; bajuWarnaSenarai = nama; }
+    });
+
+    await hantarMesej(phoneNumber, jawapan);
+  
+    if (bajuWarnaSenarai) {
+      var warnaListSenarai = [];
+      products.forEach(function(p) {
+        if (p.Nama.toLowerCase() === bajuWarnaSenarai.toLowerCase() && p.Gambar_URL) {
+          warnaListSenarai.push(p);
+        }
+      });
+      await new Promise(function(resolve) { setTimeout(resolve, 1000); });
+      for (var ws = 0; ws < warnaListSenarai.length; ws++) {
+        await hantarGambar(phoneNumber, warnaListSenarai[ws].Warna, warnaListSenarai[ws].Gambar_URL);
+        await new Promise(function(resolve) { setTimeout(resolve, 1000); });
+      }
+    }
+    return res.sendStatus(200);
+  }
     await simpanSesi(phoneNumber, sesi[phoneNumber]);
 
     // Detect COD confirmed
