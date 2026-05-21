@@ -152,7 +152,6 @@ async function simpanOrder(data) {
       }
     });
     console.log("Order disimpan!");
-
     var notifMsg = "ORDER BARU!\n\n" +
       "Nama: " + (data.nama || "") + "\n" +
       "No Tel: " + (data.noTel || "") + "\n" +
@@ -169,9 +168,7 @@ async function simpanOrder(data) {
       "Kaedah Bayar: " + (data.kaedahBayar || "") + "\n" +
       "Penama Akaun: " + (data.penamaakaun || "") + "\n" +
       "Nota: " + (data.nota || "");
-
     await hantarMesej("601123726341", notifMsg);
-    console.log("Notif admin dihantar!");
   } catch (err) {
     console.error("Error simpan order:", err);
   }
@@ -179,6 +176,10 @@ async function simpanOrder(data) {
 
 // ===== HANTAR MESEJ =====
 async function hantarMesej(phoneNumber, mesej) {
+  if (!mesej || !mesej.trim()) {
+    console.error("Mesej kosong — skip hantar");
+    return;
+  }
   var cuba = 0;
   while (cuba < 3) {
     try {
@@ -191,15 +192,14 @@ async function hantarMesej(phoneNumber, mesej) {
     } catch (err) {
       cuba++;
       console.error("Error hantar mesej cuba " + cuba + ":", err.message);
-      if (cuba < 3) {
-        await new Promise(function(resolve) { setTimeout(resolve, 2000); });
-      }
+      if (cuba < 3) await new Promise(function(r) { setTimeout(r, 2000); });
     }
   }
 }
 
 // ===== HANTAR GAMBAR =====
 async function hantarGambar(phoneNumber, mesej, gambarUrl) {
+  if (!mesej || !mesej.trim()) mesej = "😊";
   var cuba = 0;
   while (cuba < 3) {
     try {
@@ -212,90 +212,47 @@ async function hantarGambar(phoneNumber, mesej, gambarUrl) {
     } catch (err) {
       cuba++;
       console.error("Error hantar gambar cuba " + cuba + ":", err.message);
-      if (cuba < 3) {
-        await new Promise(function(resolve) { setTimeout(resolve, 2000); });
-      }
+      if (cuba < 3) await new Promise(function(r) { setTimeout(r, 2000); });
     }
   }
 }
 
-// ===== DETECT GAMBAR DARI TEXT =====
-// Ini adalah fungsi utama yang detect gambar berdasarkan keyword dalam text buyer
-// Tidak bergantung pada Claude untuk decide gambar
-function detectGambarDariText(text, products, sizeChartImages) {
-  var textLower = text.toLowerCase();
-  var result = { type: null, data: null };
-
-  // 1. Check size chart keywords
-  var kataSizeChart = [
-    "size chart", "measurement", "carta saiz", "ukuran baju", "size guide",
-    "saiz chart", "chart size", "ukuran", "measurement chart",
-    "boleh tgk size", "tunjuk size", "tgk chart", "nk tgk size",
-    "nak tgk size", "chart", "sizing"
-  ];
-  var tanyaSizeChart = kataSizeChart.some(function(kata) {
-    return textLower.includes(kata);
-  });
-  if (tanyaSizeChart) {
-    result.type = "sizechart";
-    return result;
-  }
-
-  // 2. Check katalog/semua warna keywords
-  var kataKatalog = [
-    "tengok gambar semua", "tunjuk semua design",
-    "boleh tunjuk koleksi", "tengok koleksi", "gambar semua",
-    "nak tengok semua", "ada koleksi", "tengok semua",
-    "semua design", "semua baju", "koleksi baju",
-    "ada design", "design apa", "baju apa ada",
-    "tunjuk semua warna", "semua warna"
-  ];
-  var tanyaKatalog = kataKatalog.some(function(kata) {
-    return textLower.includes(kata);
-  });
-  if (tanyaKatalog) {
-    result.type = "katalog";
-    return result;
-  }
-
-  // 3. Check specific warna disebutkan
-  var warnaFound = null;
-  var bajuFound = null;
-
+// ===== DAPATKAN BAJU TERAKHIR DALAM HISTORY =====
+function getBajuTerakhir(history, products) {
+  var historyLower = history.toLowerCase();
+  var bajuTerakhir = null;
+  var lastIdx = -1;
+  var uniqueNama = [];
   products.forEach(function(p) {
-    if (!p.Nama || !p.Warna) return;
-    if (textLower.includes(p.Nama.toLowerCase()) && textLower.includes(p.Warna.toLowerCase())) {
-      if (!bajuFound) {
-        bajuFound = p.Nama;
-        warnaFound = p.Warna;
-      }
-    }
+    if (!p || !p.Nama) return;
+    if (uniqueNama.indexOf(p.Nama) === -1) uniqueNama.push(p.Nama);
   });
-
-  if (bajuFound && warnaFound) {
-    result.type = "produk_spesifik";
-    result.data = { nama: bajuFound, warna: warnaFound };
-    return result;
-  }
-
-  // 4. Check kalau sebut warna sahaja (tanpa nama baju)
-  var warnaList = ["navy blue", "black", "dark brown", "denim blue", "matcha green",
-    "nudebrown", "nude brown", "white", "cream", "maroon", "grey", "pink",
-    "purple", "red", "blue", "green", "brown", "beige", "olive"];
-
-  warnaList.forEach(function(warna) {
-    if (textLower.includes(warna) && !warnaFound) {
-      warnaFound = warna;
-    }
+  uniqueNama.forEach(function(nama) {
+    var idx = historyLower.lastIndexOf(nama.toLowerCase());
+    if (idx > lastIdx) { lastIdx = idx; bajuTerakhir = nama; }
   });
+  return bajuTerakhir;
+}
 
-  if (warnaFound) {
-    result.type = "warna_sahaja";
-    result.data = { warna: warnaFound };
-    return result;
+// ===== CLAUDE API CALL =====
+async function callClaude(systemPrompt, messages, maxTokens) {
+  var cuba = 0;
+  while (cuba < 3) {
+    try {
+      var response = await claude.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: maxTokens || 500,
+        temperature: 0,
+        system: systemPrompt,
+        messages: messages
+      });
+      return response.content[0].text;
+    } catch (err) {
+      cuba++;
+      if (cuba === 3) throw err;
+      await new Promise(function(r) { setTimeout(r, 2000); });
+    }
   }
-
-  return result;
 }
 
 // ===== STAGE FOLLOW UP =====
@@ -313,26 +270,18 @@ setInterval(async function() {
     if (q.done) continue;
 
     if (q.stage === "browsing") {
-      // Stage 1 — hanya hantar kalau TIADA janji
       if (!q.sent1 && !q.hasJanji && (now - q.lastReply) >= 60 * 60 * 1000) {
         await hantarMesej(phone, MSG_STAGE1);
         followUpQueue[phone].sent1 = true;
         console.log("Stage 1 sent to " + phone);
       }
-
-      // Stage 1b — hanya hantar kalau ADA janji, 3 jam selepas janji
       if (q.hasJanji && !q.sent1b && q.janjiAt && (now - q.janjiAt) >= 3 * 60 * 60 * 1000) {
         try {
-          var contextResponse = await claude.messages.create({
-            model: "claude-haiku-4-5-20251001",
-            max_tokens: 150,
-            temperature: 0,
-            messages: [{
-              role: "user",
-              content: "Tulis follow up WhatsApp yang mesra dalam Bahasa Malaysia. Buyer sebelum ni kata: '" + q.lastContext + "'. Tulis 2-3 ayat pendek, panggil Cik, jangan sebut harga, tanya kalau dah boleh proceed. Teks biasa sahaja tanpa emoji berlebihan."
-            }]
-          });
-          var followUp1b = contextResponse.content[0].text;
+          var followUp1b = await callClaude(
+            "Tulis follow up WhatsApp mesra Bahasa Malaysia. 2-3 ayat pendek. Panggil Cik. Jangan sebut harga. Teks biasa sahaja.",
+            [{ role: "user", content: "Buyer kata: '" + q.lastContext + "'. Tulis follow up." }],
+            150
+          );
           await hantarMesej(phone, followUp1b);
           followUpQueue[phone].sent1b = true;
           followUpQueue[phone].sent1 = true;
@@ -341,8 +290,6 @@ setInterval(async function() {
           console.error("Error stage 1b:", err.message);
         }
       }
-
-      // Stage 2 — 24 jam
       if (q.sent1 && !q.sent2 && (now - q.lastReply) >= 24 * 60 * 60 * 1000) {
         await hantarMesej(phone, MSG_STAGE2);
         followUpQueue[phone].sent2 = true;
@@ -382,7 +329,6 @@ async function getSheetData(sheetName) {
       for (var j = 0; j < headers.length; j++) {
         row[headers[j]] = values[j] || "";
       }
-      // Buang row yang takde Nama
       if (sheetName === "Sheet1" && !row.Nama) continue;
       rows.push(row);
     }
@@ -396,6 +342,7 @@ async function getSheetData(sheetName) {
 // ===== SYSTEM PROMPT =====
 function buatSystemPrompt(products, sizeChart, produkDetail) {
   var senaraiProduk = products.map(function(p) {
+    if (!p || !p.Nama) return "";
     return p.Nama + " | Warna: " + p.Warna +
       " | Harga XS-2XL: RM" + p.Harga_XS_2XL +
       " | Harga 3XL-4XL: RM" + p.Harga_3XL_4XL + " (ADD ON RM10)" +
@@ -403,10 +350,11 @@ function buatSystemPrompt(products, sizeChart, produkDetail) {
       " M=" + p.Stock_M + " L=" + p.Stock_L +
       " XL=" + p.Stock_XL + " 2XL=" + p.Stock_2XL +
       " 3XL=" + p.Stock_3XL + " 4XL=" + p.Stock_4XL;
-  }).join("\n");
+  }).filter(Boolean).join("\n");
 
   var sizeInfo = {};
   sizeChart.forEach(function(row) {
+    if (!row.Ukuran) return;
     if (!sizeInfo[row.Ukuran]) sizeInfo[row.Ukuran] = {};
     ["XS","S","M","L","XL","2XL","3XL","4XL"].forEach(function(s) {
       sizeInfo[row.Ukuran][s] = row[s] || "";
@@ -422,6 +370,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail) {
 
   var detailText = "Detail Produk:\n";
   produkDetail.forEach(function(p) {
+    if (!p || !p.Nama) return;
     detailText += p.Nama +
       " | Material: " + p.Material +
       " | Cutting: " + p.Cutting +
@@ -441,48 +390,36 @@ function buatSystemPrompt(products, sizeChart, produkDetail) {
     "- Bila pelanggan tanya warna — senaraikan warna yang ada SAHAJA dalam teks\n" +
     "- Tanya berat badan (kg) dan ukuran dada (INCHI) untuk recommend saiz\n" +
     "- Semua ukuran dalam INCHI bukan cm\n" +
-    "- Untuk soalan tentang feature baju, rujuk DETAIL PRODUK — jawab berdasarkan maklumat tu sahaja\n" +
-    "- Jika stok = 0 untuk warna/saiz yang dipilih:\n" +
-    "  1. Beritahu stok habis\n" +
-    "  2. Cadang warna lain yang sama baju\n" +
-    "  3. Kalau tak nak, cadang baju lain warna lebih kurang sama\n" +
+    "- Untuk soalan tentang feature baju, rujuk DETAIL PRODUK sahaja\n" +
+    "- Jika stok = 0: beritahu habis, cadang warna lain, kalau tak nak cadang baju lain\n" +
     "- Saiz 3XL dan 4XL ada tambahan RM10\n" +
     "- Kaedah Pembayaran: Bank Transfer atau COD\n" +
     "- COD: Tambah RM4 kepada kos postage\n" +
     "- Kadar Postage Semenanjung: 1pcs RM6, 2-5pcs RM4/pcs, 6pcs ke atas RM2/pcs\n" +
     "- Kadar Postage Sabah & Sarawak: 1pcs RM13, 2-5pcs RM8/pcs, 6pcs ke atas RM6/pcs\n" +
-    "- Tanya pelanggan kaedah pembayaran: Bank Transfer atau COD\n" +
-    "- Maklumat Akaun Bank untuk Transfer:\n" +
-    "  Bank: MAYBANK\n" +
-    "  Nama: Adel Adyana Elegance\n" +
-    "  No Akaun: 551100323485\n" +
-    "- Selepas transfer, minta pelanggan hantar gambar resit dan nama penama akaun bank\n" +
-    "- LARANGAN MUTLAK: JANGAN tulis URL, link, http, www dalam jawapan\n" +
-    "- LARANGAN MUTLAK: JANGAN cipta URL gambar sendiri\n" +
-    "- LARANGAN MUTLAK: JANGAN tulis format markdown atau bold dalam jawapan\n" +
-    "- LARANGAN MUTLAK: JANGAN tulis perkataan sistem, akan hantar, kurungan dalam jawapan\n" +
-    "- Flow order yang BETUL:\n" +
-    "  1. Pelanggan confirm nak beli\n" +
-    "  2. Tanya lokasi: Semenanjung atau Sabah/Sarawak\n" +
-    "  3. Kira jumlah postage dan beritahu total\n" +
-    "  4. Tanya kaedah pembayaran: Bank Transfer atau COD\n" +
-    "  5. Bagi info pembayaran dengan jumlah total\n" +
-    "  6. Bila pelanggan pilih COD, tulis ORDER_COD_CONFIRMED dalam jawapan\n" +
-    "  6b. Bila pelanggan hantar resit Bank Transfer, tulis ORDER_RECEIPT_RECEIVED dalam jawapan\n" +
-    "  7. Minta details penghantaran (nama, no telefon, alamat, poskod, bandar, negeri)\n" +
-    "  8. Bila semua details lengkap, tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|postage|total|kaedahbayar|penamaakaun|nota\n" +
-    "- JANGAN minta details penghantaran sebelum pelanggan hantar resit atau confirm COD\n" +
-    "- Bila pelanggan bagi details penghantaran, JANGAN tanya semula produk\n" +
-    "- Jika pelanggan tanya size chart, jawab HANYA: Ini size chart untuk Cik 😊\n" +
-    "- WAJIB: Setiap jawapan mesti ada soalan susulan\n" +
-    "- JANGAN guna markdown atau asterisk dalam jawapan\n" +
-    "- Jawapan mesti dalam teks biasa sahaja";
+    "- Maklumat Akaun Bank: MAYBANK | Adel Adyana Elegance | 551100323485\n" +
+    "- Selepas transfer, minta resit dan nama penama akaun bank\n" +
+    "- LARANGAN MUTLAK: JANGAN tulis URL, link, markdown, bold dalam jawapan\n" +
+    "- Flow order:\n" +
+    "  1. Confirm beli → tanya lokasi (Semenanjung/Sabah/Sarawak)\n" +
+    "  2. Kira postage → beritahu total\n" +
+    "  3. Tanya kaedah bayar (Bank Transfer/COD)\n" +
+    "  4. COD → tulis ORDER_COD_CONFIRMED\n" +
+    "  4b. Resit bank transfer → tulis ORDER_RECEIPT_RECEIVED\n" +
+    "  5. Minta details penghantaran\n" +
+    "  6. Semua details lengkap → tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|postage|total|kaedahbayar|penamaakaun|nota\n" +
+    "- JANGAN minta details sebelum resit atau COD confirm\n" +
+    "- Jika tanya size chart, jawab: Ini size chart untuk Cik 😊\n" +
+    "- WAJIB: Setiap jawapan ada soalan susulan\n" +
+    "- Jawapan teks biasa sahaja";
 }
 
-// ===== WEBHOOK =====
+// ===== HEALTH CHECK =====
 app.get("/", function(req, res) {
   res.send("Bot ADEL Adyana OK");
 });
+
+// ===== WEBHOOK =====
 app.post("/webhook", async function(req, res) {
   try {
     var data = req.body;
@@ -501,20 +438,19 @@ app.post("/webhook", async function(req, res) {
 
     if (!phoneNumber) return res.sendStatus(200);
 
-    // Detect voice message
+    // Voice message
     if (!text && isVoice) {
       await hantarMesej(phoneNumber, "Maaf Cik, saya tidak dapat dengar voice note. Boleh Cik taip mesej anda? 😊");
       return res.sendStatus(200);
     }
 
-    // Detect media/gambar — anggap sebagai resit kalau stage ordered
+    // Media — resit kalau stage ordered
     if (!text && hasMedia) {
       if (followUpQueue[phoneNumber] && followUpQueue[phoneNumber].stage === "ordered") {
         followUpQueue[phoneNumber].stage = "paid";
         followUpQueue[phoneNumber].done = true;
         followUpQueue[phoneNumber].sent3a = true;
         followUpQueue[phoneNumber].sent3b = true;
-        console.log("Resit diterima dari: " + phoneNumber);
         await hantarMesej(phoneNumber, "Terima kasih Cik! Resit dah kami terima. Boleh Cik berikan nama penuh dan alamat penghantaran? 😊");
       }
       return res.sendStatus(200);
@@ -522,66 +458,44 @@ app.post("/webhook", async function(req, res) {
 
     if (!from || !text) return res.sendStatus(200);
 
-   // Detect reset command
-   if (text.trim() === "/reset") {
-     sesi[phoneNumber] = [];
-     await simpanSesi(phoneNumber, []);
-     followUpQueue[phoneNumber] = {
-       stage: "browsing",
-       lastReply: Date.now(),
-       sent1: false,
-       sent1b: false,
-       sent2: false,
-       sent3a: false,
-       sent3b: false,
-       hasJanji: false,
-       lastContext: "",
-       janjiAt: null,
-       orderedAt: null,
-       done: false
-     };
-     await hantarMesej(phoneNumber, "Sesi telah direset. Boleh saya bantu Cik? 😊");
-     return res.sendStatus(200);
-   }
+    // Reset command
+    if (text.trim() === "/reset") {
+      sesi[phoneNumber] = [];
+      await simpanSesi(phoneNumber, []);
+      followUpQueue[phoneNumber] = {
+        stage: "browsing", lastReply: Date.now(),
+        sent1: false, sent1b: false, sent2: false,
+        sent3a: false, sent3b: false, hasJanji: false,
+        lastContext: "", janjiAt: null, orderedAt: null, done: false
+      };
+      await hantarMesej(phoneNumber, "Sesi telah direset. Boleh saya bantu Cik? 😊");
+      return res.sendStatus(200);
+    }
 
-    // Check prompt injection
+    // Prompt injection
     if (detectPromptInjection(text)) {
-      console.log("Prompt injection dari: " + phoneNumber);
-      await hantarMesej(phoneNumber, "Maaf Cik, saya hanya boleh membantu berkaitan produk dan pesanan ADEL Adyana Elegance sahaja. 😊");
+      await hantarMesej(phoneNumber, "Maaf Cik, saya hanya boleh membantu berkaitan produk ADEL Adyana Elegance. 😊");
       await hantarMesej("601123726341", "PROMPT INJECTION!\nNo: " + phoneNumber + "\nMesej: " + text);
       return res.sendStatus(200);
     }
 
-    // Detect request penukaran
-    var katatukar = [
-      "nak tukar", "nk tukar", "tukar alamat", "tukar baju",
-      "tukar saiz", "tukar size", "tukar warna", "ubah alamat",
-      "ubah baju", "ubah saiz", "ubah size", "ubah warna",
-      "salah alamat", "salah saiz", "salah size", "salah baju",
-      "salah warna", "boleh tukar", "boleh ubah", "cancel", "batalkan"
-    ];
-    var adaPenukaran = katatukar.some(function(kata) {
-      return text.toLowerCase().includes(kata);
-    });
-    if (adaPenukaran) {
+    // Detect penukaran
+    var katatukar = ["nak tukar", "nk tukar", "tukar alamat", "tukar baju",
+      "tukar saiz", "tukar size", "tukar warna", "ubah alamat", "ubah baju",
+      "ubah saiz", "ubah size", "ubah warna", "salah alamat", "salah saiz",
+      "salah size", "salah baju", "salah warna", "boleh tukar", "boleh ubah",
+      "cancel", "batalkan"];
+    if (katatukar.some(function(k) { return text.toLowerCase().includes(k); })) {
       await hantarMesej("601123726341", "PERHATIAN - REQUEST PENUKARAN!\n\nNo Tel: " + phoneNumber + "\nMesej: " + text + "\n\nSila semak segera!");
     }
 
     // Setup follow up queue
     if (!followUpQueue[phoneNumber]) {
       followUpQueue[phoneNumber] = {
-        stage: "browsing",
-        lastReply: Date.now(),
-        sent1: false,
-        sent1b: false,
-        sent2: false,
-        sent3a: false,
-        sent3b: false,
-        hasJanji: false,
-        lastContext: "",
-        janjiAt: null,
-        orderedAt: null,
-        done: false
+        stage: "browsing", lastReply: Date.now(),
+        sent1: false, sent1b: false, sent2: false,
+        sent3a: false, sent3b: false, hasJanji: false,
+        lastContext: "", janjiAt: null, orderedAt: null, done: false
       };
     } else {
       if (followUpQueue[phoneNumber].stage === "browsing") {
@@ -592,7 +506,6 @@ app.post("/webhook", async function(req, res) {
       } else if (followUpQueue[phoneNumber].stage === "ordered") {
         followUpQueue[phoneNumber].lastReply = Date.now();
       }
-      // stage "paid" — jangan buat apa-apa
     }
 
     // Load sesi
@@ -601,23 +514,16 @@ app.post("/webhook", async function(req, res) {
     }
     sesi[phoneNumber].push({ role: "user", content: text });
 
-    // Detect janji dari buyer
-    var kataJanji = [
-      "kejap", "sat", "jap", "sekejap", "nanti", "later",
-      "tanya", "confirm", "check", "tengok dulu", "fikir dulu",
+    // Detect janji
+    var kataJanji = ["kejap", "sat", "jap", "sekejap", "nanti", "later",
       "dengan anak", "dengan suami", "dengan isteri", "dengan husband",
       "dengan wife", "dengan family", "dengan mak", "dengan ayah",
-      "balik rumah", "balik kerja", "petang", "malam", "esok",
-      "insyaallah", "ok nanti"
-    ];
-    var adaJanji = kataJanji.some(function(kata) {
-      return text.toLowerCase().includes(kata);
-    });
-    if (adaJanji && followUpQueue[phoneNumber].stage === "browsing") {
+      "balik rumah", "balik kerja", "petang", "malam", "esok", "insyaallah"];
+    if (kataJanji.some(function(k) { return text.toLowerCase().includes(k); }) &&
+        followUpQueue[phoneNumber].stage === "browsing") {
       followUpQueue[phoneNumber].hasJanji = true;
       followUpQueue[phoneNumber].lastContext = text;
       followUpQueue[phoneNumber].janjiAt = Date.now();
-      console.log("Buyer bagi janji: " + phoneNumber);
     }
 
     // Load data
@@ -627,53 +533,23 @@ app.post("/webhook", async function(req, res) {
     var sizeChartImages = await getSheetDataCached("sizeChartImages");
     var katalog = await getSheetDataCached("Katalog");
     var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail);
+    var textLower = text.toLowerCase();
+    var history = sesi[phoneNumber].map(function(m) { return m.content; }).join(" ");
 
-    // ===== DETECT GAMBAR DARI TEXT BUYER (CODE-BASED) =====
-    var gambarDetect = detectGambarDariText(text, products, sizeChartImages);
-
-   // Check kalau buyer tanya warna specific yang mungkin takde
-   if (gambarDetect.type === null) {
-     var uniqueNamaCheck = [];
-     products.forEach(function(p) {
-       if (!p.Nama) return;
-       if (uniqueNamaCheck.indexOf(p.Nama) === -1) uniqueNamaCheck.push(p.Nama);
-     });
-  
-     var bajuDisebut2 = null;
-     uniqueNamaCheck.forEach(function(nama) {
-       if (text.toLowerCase().includes(nama.toLowerCase())) {
-        bajuDisebut2 = nama;
-       }
-     });
-
-     if (bajuDisebut2 && (text.toLowerCase().includes("warna") || 
-         text.toLowerCase().includes("color") || 
-         text.toLowerCase().includes("colour") ||
-         text.toLowerCase().includes("ada") )) {
-       gambarDetect.type = "tanya_warna_specific";
-       gambarDetect.data = { nama: bajuDisebut2 };
-     }
-   }
-
-    if (gambarDetect.type === "sizechart") {
-      // Hantar size chart berdasarkan baju dalam history
-      var fullHistory = sesi[phoneNumber].map(function(m) { return m.content; }).join(" ").toLowerCase();
+    // ===== 1. DETECT SIZE CHART =====
+    var kataSizeChart = ["size chart", "measurement", "carta saiz", "ukuran baju",
+      "size guide", "saiz chart", "chart size", "measurement chart",
+      "tgk chart", "nk tgk size", "nak tgk size", "chart", "sizing"];
+    if (kataSizeChart.some(function(k) { return textLower.includes(k); })) {
       var bajuSC = null;
       var lastIdxSC = -1;
       sizeChartImages.forEach(function(s) {
-        var idx = fullHistory.lastIndexOf(s.Nama.toLowerCase());
+        if (!s || !s.Nama) return;
+        var idx = history.toLowerCase().lastIndexOf(s.Nama.toLowerCase());
         if (idx > lastIdxSC) { lastIdxSC = idx; bajuSC = s; }
       });
 
-      // Dapatkan jawapan Claude dulu
-      var scResponse = await claude.messages.create({
-        model: "claude-haiku-4-5",
-        max_tokens: 200,
-        temperature: 0,
-        system: systemPrompt,
-        messages: sesi[phoneNumber]
-      });
-      var scJawapan = scResponse.content[0].text;
+      var scJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
       sesi[phoneNumber].push({ role: "assistant", content: scJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
 
@@ -681,332 +557,114 @@ app.post("/webhook", async function(req, res) {
         await hantarGambar(phoneNumber, "Size chart " + bajuSC.Nama + " untuk Cik 😊", bajuSC.Gambar_URL);
       } else {
         for (var sc = 0; sc < sizeChartImages.length; sc++) {
-          if (sizeChartImages[sc].Gambar_URL) {
+          if (sizeChartImages[sc] && sizeChartImages[sc].Gambar_URL) {
             await hantarGambar(phoneNumber, "Size chart " + sizeChartImages[sc].Nama + " 😊", sizeChartImages[sc].Gambar_URL);
-            await new Promise(function(resolve) { setTimeout(resolve, 1000); });
+            await new Promise(function(r) { setTimeout(r, 1000); });
           }
         }
       }
-      if (autoGambarUrl) {
-        await hantarGambar(phoneNumber, scJawapan, autoGambarUrl);
-      } else {
-        await hantarMesej(phoneNumber, scJawapan);
-      }
+      await hantarMesej(phoneNumber, scJawapan);
       return res.sendStatus(200);
     }
 
-    if (gambarDetect.type === "katalog") {
-      // Semak baju dalam history
-      var historyForKatalog = sesi[phoneNumber].map(function(m) { return m.content; }).join(" ").toLowerCase();
-      var bajuHistory = null;
-      var lastIdxK = -1;
-      var uniqueNamaK = [];
-      products.forEach(function(p) {
-        if (!p.Nama) return;
-        if (uniqueNamaK.indexOf(p.Nama) === -1) uniqueNamaK.push(p.Nama);
-      });
-      uniqueNamaK.forEach(function(nama) {
-        var idx = historyForKatalog.lastIndexOf(nama.toLowerCase());
-        if (idx > lastIdxK) { lastIdxK = idx; bajuHistory = nama; }
-      });
-
-      // Dapatkan jawapan Claude
-      var katResponse = await claude.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 200,
-        temperature: 0,
-        system: systemPrompt,
-        messages: sesi[phoneNumber]
-      });
-      var katJawapan = katResponse.content[0].text;
+    // ===== 2. DETECT SEMUA KATALOG =====
+    var kataKatalog = ["tengok gambar semua", "tunjuk semua design",
+      "boleh tunjuk koleksi", "tengok koleksi", "gambar semua",
+      "nak tengok semua", "tengok semua", "semua design", "semua baju",
+      "koleksi baju", "tunjuk semua warna", "semua warna"];
+    if (kataKatalog.some(function(k) { return textLower.includes(k); })) {
+      var bajuHistoryK = getBajuTerakhir(history, products);
+      var katJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
       sesi[phoneNumber].push({ role: "assistant", content: katJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
 
-      if (bajuHistory) {
-        var warnaListK = [];
-        products.forEach(function(p) {
-          if (!p.Nama) return;
-          if (p.Nama.toLowerCase() === bajuHistory.toLowerCase() && p.Gambar_URL) {
-            warnaListK.push(p);
-          }
+      if (bajuHistoryK) {
+        var warnaListK = products.filter(function(p) {
+          return p && p.Nama && p.Nama.toLowerCase() === bajuHistoryK.toLowerCase() && p.Gambar_URL;
         });
         for (var wk = 0; wk < warnaListK.length; wk++) {
           await hantarGambar(phoneNumber, warnaListK[wk].Warna, warnaListK[wk].Gambar_URL);
-          await new Promise(function(resolve) { setTimeout(resolve, 1000); });
-        }
-        if (autoGambarUrl) {
-          await hantarGambar(phoneNumber, katJawapan, autoGambarUrl);
-        } else {
-          await hantarMesej(phoneNumber, katJawapan);
+          await new Promise(function(r) { setTimeout(r, 1000); });
         }
       } else {
         for (var kat = 0; kat < katalog.length; kat++) {
-          if (katalog[kat].Gambar_URL) {
+          if (katalog[kat] && katalog[kat].Gambar_URL) {
             await hantarGambar(phoneNumber, katalog[kat].Nama, katalog[kat].Gambar_URL);
-            await new Promise(function(resolve) { setTimeout(resolve, 1000); });
+            await new Promise(function(r) { setTimeout(r, 1000); });
           }
         }
-        await hantarMesej(phoneNumber, "Ini semua koleksi terbaru ADEL Adyana Elegance 😊\n\nCik berminat dengan design yang mana?");
       }
+      await hantarMesej(phoneNumber, katJawapan);
       return res.sendStatus(200);
     }
 
-    if (gambarDetect.type === "produk_spesifik") {
-      // Hantar gambar warna specific yang disebut
-      var produkSpesifik = null;
-      products.forEach(function(p) {
-        if (!p.Nama) return;
-        if (p.Nama.toLowerCase() === gambarDetect.data.nama.toLowerCase() &&
-            p.Warna.toLowerCase() === gambarDetect.data.warna.toLowerCase() &&
-            p.Gambar_URL) {
-          produkSpesifik = p;
-        }
-      });
+    // ===== 3. DETECT BAJU + WARNA SPECIFIC =====
+    var bajuFound = null;
+    var warnaFound = null;
+    products.forEach(function(p) {
+      if (!p || !p.Nama || !p.Warna) return;
+      if (textLower.includes(p.Nama.toLowerCase()) && textLower.includes(p.Warna.toLowerCase())) {
+        if (!bajuFound) { bajuFound = p.Nama; warnaFound = p.Warna; }
+      }
+    });
 
-      var psResponse = await claude.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 300,
-        temperature: 0,
-        system: systemPrompt,
-        messages: sesi[phoneNumber]
+    if (bajuFound && warnaFound) {
+      var produkSpesifik = products.find(function(p) {
+        return p && p.Nama && p.Warna &&
+          p.Nama.toLowerCase() === bajuFound.toLowerCase() &&
+          p.Warna.toLowerCase() === warnaFound.toLowerCase() &&
+          p.Gambar_URL;
       });
-      var psJawapan = psResponse.content[0].text;
+      var psJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 300);
       sesi[phoneNumber].push({ role: "assistant", content: psJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
-
       if (produkSpesifik) {
         await hantarGambar(phoneNumber, psJawapan, produkSpesifik.Gambar_URL);
       } else {
-        if (autoGambarUrl) {
-          await hantarGambar(phoneNumber, psJawapan, autoGambarUrl);
-        } else {
-          await hantarMesej(phoneNumber, psJawapan);
-        }
+        await hantarMesej(phoneNumber, psJawapan);
       }
       return res.sendStatus(200);
     }
 
-    if (gambarDetect.type === "warna_sahaja") {
-    if (gambarDetect.type === "tanya_warna_specific") {
-     var bajuTanya = gambarDetect.data.nama;
-  
-     // Semak warna yang disebut buyer ada dalam sheet tak
-     var warnaAvailable = [];
-     products.forEach(function(p) {
-       if (!p.Nama) return;
-       if (p.Nama.toLowerCase() === bajuTanya.toLowerCase()) {
-        warnaAvailable.push(p.Warna);
-       }
-     });
-
-    // Tambah info warna available dalam system prompt untuk Claude jawab
-    var extraInstruction = "Pelanggan tanya warna untuk " + bajuTanya + ". Warna yang ada: " + warnaAvailable.join(", ") + ". Kalau warna yang ditanya takde, beritahu dengan mesra dan cadang warna yang ada.";
-  
-    var twResponse = await claude.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 300,
-      temperature: 0,
-      system: systemPrompt + "\n\nMAKLUMAT TAMBAHAN: " + extraInstruction,
-      messages: sesi[phoneNumber]
+    // ===== 4. DETECT BAJU + TANYA WARNA =====
+    var bajuDisebut = null;
+    var uniqueNamaAll = [];
+    products.forEach(function(p) {
+      if (!p || !p.Nama) return;
+      if (uniqueNamaAll.indexOf(p.Nama) === -1) uniqueNamaAll.push(p.Nama);
     });
-    var twJawapan = twResponse.content[0].text;
-    sesi[phoneNumber].push({ role: "assistant", content: twJawapan });
-    await simpanSesi(phoneNumber, sesi[phoneNumber]);
-    if (autoGambarUrl) {
-      await hantarGambar(phoneNumber, twJawapan, autoGambarUrl);
-    } else {
-      await hantarMesej(phoneNumber, twJawapan);
-    }
-    return res.sendStatus(200);
-  }
+    uniqueNamaAll.forEach(function(nama) {
+      if (textLower.includes(nama.toLowerCase())) bajuDisebut = nama;
+    });
 
-      // Semak baju dari history, hantar gambar warna tersebut
-      var historyForWarna = sesi[phoneNumber].map(function(m) { return m.content; }).join(" ").toLowerCase();
-      var bajuForWarna = null;
-      var lastIdxWarna = -1;
-      var uniqueNamaWarna = [];
-      products.forEach(function(p) {
-        if (!p.Nama) return;
-        if (uniqueNamaWarna.indexOf(p.Nama) === -1) uniqueNamaWarna.push(p.Nama);
-      });
-      uniqueNamaWarna.forEach(function(nama) {
-        var idx = historyForWarna.lastIndexOf(nama.toLowerCase());
-        if (idx > lastIdxWarna) { lastIdxWarna = idx; bajuForWarna = nama; }
-      });
+    if (bajuDisebut && (textLower.includes("warna") || textLower.includes("color") ||
+        textLower.includes("ada") || textLower.includes("contoh") || textLower.includes("gambar"))) {
+      var warnaAvailable = products
+        .filter(function(p) { return p && p.Nama && p.Nama.toLowerCase() === bajuDisebut.toLowerCase(); })
+        .map(function(p) { return p.Warna; });
 
-      var wsResponse = await claude.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 300,
-        temperature: 0,
-        system: systemPrompt,
-        messages: sesi[phoneNumber]
-      });
-      var wsJawapan = wsResponse.content[0].text;
-      sesi[phoneNumber].push({ role: "assistant", content: wsJawapan });
+      var extraInfo = "Warna yang ada untuk " + bajuDisebut + ": " + warnaAvailable.join(", ") + ".";
+      var twJawapan = await callClaude(systemPrompt + "\n\nMAKLUMAT: " + extraInfo, sesi[phoneNumber], 300);
+      sesi[phoneNumber].push({ role: "assistant", content: twJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
+      await hantarMesej(phoneNumber, twJawapan);
 
-      var produkWarna = null;
-      if (bajuForWarna) {
-        products.forEach(function(p) {
-          if (!p.Nama) return;
-          if (p.Nama.toLowerCase() === bajuForWarna.toLowerCase() &&
-              p.Warna.toLowerCase().includes(gambarDetect.data.warna.toLowerCase()) &&
-              p.Gambar_URL) {
-            produkWarna = p;
-          }
-        });
-      }
-
-      if (produkWarna) {
-        await hantarGambar(phoneNumber, wsJawapan, produkWarna.Gambar_URL);
-      } else {
-        if (autoGambarUrl) {
-          await hantarGambar(phoneNumber, wsJawapan, autoGambarUrl);
-        } else {
-          await hantarMesej(phoneNumber, wsJawapan);
-        }
+      // Hantar gambar katalog baju tu
+      var katalogBaju = katalog.find(function(k) {
+        return k && k.Nama && (k.Nama.toLowerCase().includes(bajuDisebut.toLowerCase()) ||
+          bajuDisebut.toLowerCase().includes(k.Nama.toLowerCase()));
+      });
+      if (katalogBaju && katalogBaju.Gambar_URL) {
+        await new Promise(function(r) { setTimeout(r, 1000); });
+        await hantarGambar(phoneNumber, katalogBaju.Nama, katalogBaju.Gambar_URL);
       }
       return res.sendStatus(200);
     }
 
-    // ===== PROSES NORMAL — TIADA GAMBAR DETECTED =====
-    var response;
-    var cuba = 0;
-    while (cuba < 3) {
-      try {
-        response = await claude.messages.create({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 500,
-          temperature: 0,
-          system: systemPrompt,
-          messages: sesi[phoneNumber]
-        });
-        break;
-      } catch (retryErr) {
-        cuba++;
-        if (cuba === 3) throw retryErr;
-        await new Promise(function(resolve) { setTimeout(resolve, 2000); });
-      }
-    }
+    // ===== 5. PROSES NORMAL =====
+    var jawapan = await callClaude(systemPrompt, sesi[phoneNumber], 500);
 
-    var jawapan = response.content[0].text;
-
-   // Auto detect gambar — hanya kalau buyer tanya gambar/warna
-   var autoGambarUrl = null;
-   var kataGambarAuto = [
-     "gambar", "warna", "contoh", "tunjuk", "tengok",
-     "tgk", "show", "colour", "color", "lihat"
-   ];
-   var buyerTanyaGambar = kataGambarAuto.some(function(kata) {
-     return text.toLowerCase().includes(kata);
-   });
-
-   if (buyerTanyaGambar) {
-    var historyGambar = sesi[phoneNumber].map(function(m) {
-      return m.content;
-    }).join(" ").toLowerCase();
-
-    var bajuTerakhir = null;
-    var lastIdxAuto = -1;
-    var uniqueNamaAuto = [];
-    products.forEach(function(p) {
-      if (!p.Nama) return;
-      if (uniqueNamaAuto.indexOf(p.Nama) === -1) uniqueNamaAuto.push(p.Nama);
-    });
-    uniqueNamaAuto.forEach(function(nama) {
-      if (!nama) return;
-      var idx = historyGambar.lastIndexOf(nama.toLowerCase());
-      if (idx > lastIdxAuto) { lastIdxAuto = idx; bajuTerakhir = nama; }
-    });
-
-    if (bajuTerakhir) {
-      products.forEach(function(p) {
-        if (!p || !p.Nama || !p.Warna || !p.Gambar_URL) return;
-        if (p.Nama.toLowerCase() === bajuTerakhir.toLowerCase() &&
-            jawapan.toLowerCase().includes(p.Warna.toLowerCase())) {
-          autoGambarUrl = p.Gambar_URL;
-        }
-      });
-    }
-  }
-   var historyGambar = sesi[phoneNumber].map(function(m) { 
-     return m.content; 
-   }).join(" ").toLowerCase();
-
-   // Cari baju paling akhir disebut dalam history
-   var bajuTerakhir = null;
-   var lastIdxAuto = -1;
-   var uniqueNamaAuto = [];
-   products.forEach(function(p) {
-     if (!p.Nama) return;
-     if (uniqueNamaAuto.indexOf(p.Nama) === -1) uniqueNamaAuto.push(p.Nama);
-   });
-   uniqueNamaAuto.forEach(function(nama) {
-     if (!nama) return;
-     var idx = historyGambar.lastIndexOf(nama.toLowerCase());
-     if (idx > lastIdxAuto) { lastIdxAuto = idx; bajuTerakhir = nama; }
-   });
-
-   // Cari warna yang disebut dalam jawapan Claude
-   if (bajuTerakhir) {
-     products.forEach(function(p) {
-       if (!p.Nama || !p.Warna || !p.Gambar_URL) return;
-       if (p.Nama.toLowerCase() === bajuTerakhir.toLowerCase() &&
-           jawapan.toLowerCase().includes(p.Warna.toLowerCase())) {
-         autoGambarUrl = p.Gambar_URL;
-       }
-     });
-   }
-    sesi[phoneNumber].push({ role: "assistant", content: jawapan });
-   // Detect kalau bot senarai warna — terus hantar semua gambar warna
-   var adaSenaraWarna = jawapan.toLowerCase().includes("warna yang ada") || 
-                        jawapan.toLowerCase().includes("warna yang tersedia") ||
-                        jawapan.toLowerCase().includes("warna yang kami ada") ||
-                        jawapan.toLowerCase().includes("pilihan warna");
-
-   if (adaSenaraWarna) {
-     sesi[phoneNumber].push({ role: "assistant", content: jawapan });
-     await simpanSesi(phoneNumber, sesi[phoneNumber]);
-  
-    // Cari baju dalam history
-    var historyWarnaSenarai = sesi[phoneNumber].map(function(m) { return m.content; }).join(" ").toLowerCase();
-    var bajuWarnaSenarai = null;
-    var lastIdxWS = -1;
-    var uniqueNamaWS = [];
-    products.forEach(function(p) {
-      if (!p.Nama) return;
-      if (uniqueNamaWS.indexOf(p.Nama) === -1) uniqueNamaWS.push(p.Nama);
-    });
-    uniqueNamaWS.forEach(function(nama) {
-      var idx = historyWarnaSenarai.lastIndexOf(nama.toLowerCase());
-      if (idx > lastIdxWS) { lastIdxWS = idx; bajuWarnaSenarai = nama; }
-    });
-
-    if (autoGambarUrl) {
-      await hantarGambar(phoneNumber, jawapan, autoGambarUrl);
-    } else {
-      await hantarMesej(phoneNumber, jawapan);
-    }
-  
-    if (bajuWarnaSenarai) {
-      var warnaListSenarai = [];
-      products.forEach(function(p) {
-        if (!p.Nama) return;
-        if (p.Nama.toLowerCase() === bajuWarnaSenarai.toLowerCase() && p.Gambar_URL) {
-          warnaListSenarai.push(p);
-        }
-      });
-      await new Promise(function(resolve) { setTimeout(resolve, 1000); });
-      for (var ws = 0; ws < warnaListSenarai.length; ws++) {
-        await hantarGambar(phoneNumber, warnaListSenarai[ws].Warna, warnaListSenarai[ws].Gambar_URL);
-        await new Promise(function(resolve) { setTimeout(resolve, 1000); });
-      }
-    }
-    return res.sendStatus(200);
-  }
-    await simpanSesi(phoneNumber, sesi[phoneNumber]);
-
-    // Detect COD confirmed
+    // Detect COD
     if (jawapan.includes("ORDER_COD_CONFIRMED")) {
       followUpQueue[phoneNumber].stage = "ordered";
       followUpQueue[phoneNumber].orderedAt = Date.now();
@@ -1016,7 +674,7 @@ app.post("/webhook", async function(req, res) {
       jawapan = jawapan.replace("ORDER_COD_CONFIRMED", "").trim();
     }
 
-    // Detect resit diterima
+    // Detect resit
     if (jawapan.includes("ORDER_RECEIPT_RECEIVED")) {
       followUpQueue[phoneNumber].stage = "paid";
       followUpQueue[phoneNumber].done = true;
@@ -1027,53 +685,72 @@ app.post("/webhook", async function(req, res) {
     if (jawapan.includes("ORDER_CONFIRMED:")) {
       var orderData = jawapan.split("ORDER_CONFIRMED:")[1].split("|");
       await simpanOrder({
-        nama: orderData[0] || "",
-        noTel: orderData[1] || "",
-        alamat: orderData[2] || "",
-        poskod: orderData[3] || "",
-        bandar: orderData[4] || "",
-        negeri: orderData[5] || "",
-        produk: orderData[6] || "",
-        saiz: orderData[7] || "",
-        warna: orderData[8] || "",
-        harga: orderData[9] || "",
-        postage: orderData[10] || "",
-        total: orderData[11] || "",
-        kaedahBayar: orderData[12] || "",
-        penamaakaun: orderData[13] || "",
+        nama: orderData[0] || "", noTel: orderData[1] || "",
+        alamat: orderData[2] || "", poskod: orderData[3] || "",
+        bandar: orderData[4] || "", negeri: orderData[5] || "",
+        produk: orderData[6] || "", saiz: orderData[7] || "",
+        warna: orderData[8] || "", harga: orderData[9] || "",
+        postage: orderData[10] || "", total: orderData[11] || "",
+        kaedahBayar: orderData[12] || "", penamaakaun: orderData[13] || "",
         nota: orderData[14] || ""
       });
       jawapan = jawapan.split("ORDER_CONFIRMED:")[0].trim();
-      if (!jawapan) {
-        jawapan = "Terima kasih Cik! Order Cik telah berjaya direkodkan. Kami akan proses segera 😊";
-      }
+      if (!jawapan) jawapan = "Terima kasih Cik! Order Cik telah berjaya direkodkan. Kami akan proses segera 😊";
       followUpQueue[phoneNumber].stage = "paid";
       followUpQueue[phoneNumber].done = true;
       followUpQueue[phoneNumber].sent3a = true;
       followUpQueue[phoneNumber].sent3b = true;
     }
 
-    if (autoGambarUrl) {
-      await hantarGambar(phoneNumber, twJawapan, autoGambarUrl);
-    } else {
-      await hantarMesej(phoneNumber, twJawapan);
-    }
+    sesi[phoneNumber].push({ role: "assistant", content: jawapan });
+    await simpanSesi(phoneNumber, sesi[phoneNumber]);
 
-    // Hantar gambar katalog baju yang ditanya
-    var katalogBaju = null;
-    katalog.forEach(function(k) {
-      if (k.Nama.toLowerCase().includes(bajuTanya.toLowerCase()) ||
-          bajuTanya.toLowerCase().includes(k.Nama.toLowerCase())) {
-        katalogBaju = k;
+    // Auto detect gambar dari jawapan Claude (hanya kalau buyer tanya gambar/warna)
+    var kataGambarAuto = ["gambar", "warna", "contoh", "tunjuk", "tengok", "tgk", "colour", "color", "lihat"];
+    var buyerTanyaGambar = kataGambarAuto.some(function(k) { return textLower.includes(k); });
+    var autoGambarUrl = null;
+
+    if (buyerTanyaGambar) {
+      var bajuTerakhir = getBajuTerakhir(history, products);
+      if (bajuTerakhir) {
+        products.forEach(function(p) {
+          if (!p || !p.Nama || !p.Warna || !p.Gambar_URL) return;
+          if (p.Nama.toLowerCase() === bajuTerakhir.toLowerCase() &&
+              jawapan.toLowerCase().includes(p.Warna.toLowerCase())) {
+            autoGambarUrl = p.Gambar_URL;
+          }
+        });
       }
-    });
-
-    if (katalogBaju && katalogBaju.Gambar_URL) {
-      await new Promise(function(resolve) { setTimeout(resolve, 1000); });
-      await hantarGambar(phoneNumber, katalogBaju.Nama, katalogBaju.Gambar_URL);
     }
-    return res.sendStatus(200);
 
+    // Detect bot senarai warna — hantar gambar katalog
+    var adaSenaraWarna = jawapan.toLowerCase().includes("warna yang ada") ||
+      jawapan.toLowerCase().includes("warna yang tersedia") ||
+      jawapan.toLowerCase().includes("pilihan warna");
+
+    if (adaSenaraWarna) {
+      var bajuSenarai = getBajuTerakhir(history + " " + jawapan, products);
+      await hantarMesej(phoneNumber, jawapan);
+      if (bajuSenarai) {
+        var warnaListSenarai = products.filter(function(p) {
+          return p && p.Nama && p.Nama.toLowerCase() === bajuSenarai.toLowerCase() && p.Gambar_URL;
+        });
+        await new Promise(function(r) { setTimeout(r, 1000); });
+        for (var ws = 0; ws < warnaListSenarai.length; ws++) {
+          await hantarGambar(phoneNumber, warnaListSenarai[ws].Warna, warnaListSenarai[ws].Gambar_URL);
+          await new Promise(function(r) { setTimeout(r, 1000); });
+        }
+      }
+      return res.sendStatus(200);
+    }
+
+    if (autoGambarUrl) {
+      await hantarGambar(phoneNumber, jawapan, autoGambarUrl);
+    } else {
+      await hantarMesej(phoneNumber, jawapan);
+    }
+
+    res.sendStatus(200);
   } catch (err) {
     console.error(err);
     res.sendStatus(200);
