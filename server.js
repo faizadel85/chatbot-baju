@@ -399,6 +399,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail) {
     "- Kadar Postage Sabah & Sarawak: 1pcs RM13, 2-5pcs RM8/pcs, 6pcs ke atas RM6/pcs\n" +
     "- Maklumat Akaun Bank: MAYBANK | Adel Adyana Elegance | 551100323485\n" +
     "- Selepas transfer, minta resit dan nama penama akaun bank\n" +
+    "- Kamu BOLEH hantar gambar — sistem akan hantar automatik\n" +
+    "- JANGAN kata tidak boleh hantar gambar atau tidak boleh tunjuk gambar\n" +
     "- LARANGAN MUTLAK: JANGAN tulis URL, link, markdown, bold dalam jawapan\n" +
     "- Flow order:\n" +
     "  1. Confirm beli → tanya lokasi (Semenanjung/Sabah/Sarawak)\n" +
@@ -571,7 +573,8 @@ app.post("/webhook", async function(req, res) {
     var kataKatalog = ["tengok gambar semua", "tunjuk semua design",
       "boleh tunjuk koleksi", "tengok koleksi", "gambar semua",
       "nak tengok semua", "tengok semua", "semua design", "semua baju",
-      "koleksi baju", "tunjuk semua warna", "semua warna"];
+      "koleksi baju", "tunjuk semua warna", "semua warna", "semua gambar", "bagi gambar", "hantar gambar", "gambar koleksi",
+  "gambar semua koleksi", "boleh bagi", "tunjuk semua"];
     if (kataKatalog.some(function(k) { return textLower.includes(k); })) {
       var bajuHistoryK = getBajuTerakhir(history, products);
       var katJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
