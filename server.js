@@ -380,7 +380,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail) {
 
   return "Kamu adalah pembantu jualan kedai baju ADEL Adyana Elegance. Jawab dalam Bahasa Malaysia Baku yang ringkas, mesra dan profesional.\n" +
     "PENTING: Panggil pelanggan sebagai Cik sahaja.\n" +
-    "BAHASA: Gunakan HANYA Bahasa Malaysia. DILARANG guna perkataan Indonesia seperti cocok, oke, yuk, dong, sih, deh, banget.\n" +
+    "BAHASA: Gunakan HANYA Bahasa Malaysia. DILARANG guna perkataan Indonesia seperti cocok, oke, yuk, dong, sih, deh, banget, dikonfirmasi, konfirmasi.\n" +
+    "Guna perkataan Malaysia: 'disahkan' bukan 'dikonfirmasi', 'sesuai' bukan 'cocok', 'baik' bukan 'oke'.\n" +
     "GAYA: Ayat pendek, mudah faham, profesional. Maksimum 3-4 ayat per jawapan.\n\n" +
     "PRODUK:\n" + senaraiProduk + "\n\n" +
     "PANDUAN SAIZ:\n" + sizeText + "\n\n" +
@@ -691,7 +692,7 @@ app.post("/webhook", async function(req, res) {
         nota: orderData[14] || ""
       });
       jawapan = jawapan.split("ORDER_CONFIRMED:")[0].trim();
-      if (!jawapan) jawapan = "Terima kasih Cik! Order Cik telah berjaya direkodkan. Kami akan proses segera 😊";
+      if (!jawapan) jawapan = "Terima kasih Cik! Order Cik telah berjaya disahkan. Kami akan proses segera 😊";
       followUpQueue[phoneNumber].stage = "paid";
       followUpQueue[phoneNumber].done = true;
       followUpQueue[phoneNumber].sent3a = true;
