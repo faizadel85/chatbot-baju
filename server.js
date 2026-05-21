@@ -486,6 +486,9 @@ function buatSystemPrompt(products, sizeChart, produkDetail) {
 }
 
 // ===== WEBHOOK =====
+app.get("/", function(req, res) {
+  res.send("Bot ADEL Adyana OK");
+});
 app.post("/webhook", async function(req, res) {
   try {
     var data = req.body;
