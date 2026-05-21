@@ -243,18 +243,12 @@ function detectGambarDariText(text, products, sizeChartImages) {
 
   // 2. Check katalog/semua warna keywords
   var kataKatalog = [
-    "tengok gambar semua", "tunjuk semua design", "ada gambar tak",
+    "tengok gambar semua", "tunjuk semua design",
     "boleh tunjuk koleksi", "tengok koleksi", "gambar semua",
-    "nak tengok gambar", "nak tengok semua", "tunjuk gambar",
-    "ada koleksi", "tengok semua", "show gambar", "gambar koleksi",
+    "nak tengok semua", "ada koleksi", "tengok semua",
     "semua design", "semua baju", "koleksi baju",
-    "ada design", "design apa", "baju apa ada", "semua warna",
-    "tunjuk semua warna", "warna apa ada", "ada warna apa",
-    "warna yang ada", "pilihan warna", "warna lain", "contoh", "ada contoh", "tgk contoh", "tengok contoh",
-    "gambar tak", "ada gambar", "tunjuk", "nak tengok", "nsk tengok", "nk tengok", "nk tgk", "nak tgk",
-    "nk tengok warna", "tgk warna", "tengok warna",
-    "nak tengok warna", "nk tgk warna", "warna apa", "tengok warna", "tgk warna",
-    "warna yang ada", "pilihan warna", "warna lain", "warna ni"
+    "ada design", "design apa", "baju apa ada",
+    "tunjuk semua warna", "semua warna"
   ];
   var tanyaKatalog = kataKatalog.some(function(kata) {
     return textLower.includes(kata);
@@ -671,7 +665,11 @@ app.post("/webhook", async function(req, res) {
           }
         }
       }
-      await hantarMesej(phoneNumber, scJawapan);
+      if (autoGambarUrl) {
+        await hantarGambar(phoneNumber, scJawapan, autoGambarUrl);
+      } else {
+        await hantarMesej(phoneNumber, scJawapan);
+      }
       return res.sendStatus(200);
     }
 
@@ -714,7 +712,11 @@ app.post("/webhook", async function(req, res) {
           await hantarGambar(phoneNumber, warnaListK[wk].Warna, warnaListK[wk].Gambar_URL);
           await new Promise(function(resolve) { setTimeout(resolve, 1000); });
         }
-        await hantarMesej(phoneNumber, katJawapan);
+        if (autoGambarUrl) {
+          await hantarGambar(phoneNumber, katJawapan, autoGambarUrl);
+        } else {
+          await hantarMesej(phoneNumber, katJawapan);
+        }
       } else {
         for (var kat = 0; kat < katalog.length; kat++) {
           if (katalog[kat].Gambar_URL) {
@@ -753,7 +755,11 @@ app.post("/webhook", async function(req, res) {
       if (produkSpesifik) {
         await hantarGambar(phoneNumber, psJawapan, produkSpesifik.Gambar_URL);
       } else {
-        await hantarMesej(phoneNumber, psJawapan);
+        if (autoGambarUrl) {
+          await hantarGambar(phoneNumber, psJawapan, autoGambarUrl);
+        } else {
+          await hantarMesej(phoneNumber, psJawapan);
+        }
       }
       return res.sendStatus(200);
     }
@@ -784,7 +790,11 @@ app.post("/webhook", async function(req, res) {
     var twJawapan = twResponse.content[0].text;
     sesi[phoneNumber].push({ role: "assistant", content: twJawapan });
     await simpanSesi(phoneNumber, sesi[phoneNumber]);
-    await hantarMesej(phoneNumber, twJawapan);
+    if (autoGambarUrl) {
+      await hantarGambar(phoneNumber, twJawapan, autoGambarUrl);
+    } else {
+      await hantarMesej(phoneNumber, twJawapan);
+    }
     return res.sendStatus(200);
   }
 
@@ -828,7 +838,11 @@ app.post("/webhook", async function(req, res) {
       if (produkWarna) {
         await hantarGambar(phoneNumber, wsJawapan, produkWarna.Gambar_URL);
       } else {
-        await hantarMesej(phoneNumber, wsJawapan);
+        if (autoGambarUrl) {
+          await hantarGambar(phoneNumber, wsJawapan, autoGambarUrl);
+        } else {
+          await hantarMesej(phoneNumber, wsJawapan);
+        }
       }
       return res.sendStatus(200);
     }
@@ -854,6 +868,36 @@ app.post("/webhook", async function(req, res) {
     }
 
     var jawapan = response.content[0].text;
+
+   // Auto detect gambar berdasarkan history — tak bergantung Claude
+   var autoGambarUrl = null;
+   var historyGambar = sesi[phoneNumber].map(function(m) { 
+     return m.content; 
+   }).join(" ").toLowerCase();
+
+   // Cari baju paling akhir disebut dalam history
+   var bajuTerakhir = null;
+   var lastIdxAuto = -1;
+   var uniqueNamaAuto = [];
+   products.forEach(function(p) {
+     if (!p.Nama) return;
+     if (uniqueNamaAuto.indexOf(p.Nama) === -1) uniqueNamaAuto.push(p.Nama);
+   });
+   uniqueNamaAuto.forEach(function(nama) {
+     var idx = historyGambar.lastIndexOf(nama.toLowerCase());
+     if (idx > lastIdxAuto) { lastIdxAuto = idx; bajuTerakhir = nama; }
+   });
+
+   // Cari warna yang disebut dalam jawapan Claude
+   if (bajuTerakhir) {
+     products.forEach(function(p) {
+       if (!p.Nama || !p.Warna || !p.Gambar_URL) return;
+       if (p.Nama.toLowerCase() === bajuTerakhir.toLowerCase() &&
+           jawapan.toLowerCase().includes(p.Warna.toLowerCase())) {
+         autoGambarUrl = p.Gambar_URL;
+       }
+     });
+   }
     sesi[phoneNumber].push({ role: "assistant", content: jawapan });
    // Detect kalau bot senarai warna — terus hantar semua gambar warna
    var adaSenaraWarna = jawapan.toLowerCase().includes("warna yang ada") || 
@@ -879,7 +923,11 @@ app.post("/webhook", async function(req, res) {
       if (idx > lastIdxWS) { lastIdxWS = idx; bajuWarnaSenarai = nama; }
     });
 
-    await hantarMesej(phoneNumber, jawapan);
+    if (autoGambarUrl) {
+      await hantarGambar(phoneNumber, jawapan, autoGambarUrl);
+    } else {
+      await hantarMesej(phoneNumber, jawapan);
+    }
   
     if (bajuWarnaSenarai) {
       var warnaListSenarai = [];
@@ -946,7 +994,11 @@ app.post("/webhook", async function(req, res) {
       followUpQueue[phoneNumber].sent3b = true;
     }
 
-    await hantarMesej(phoneNumber, twJawapan);
+    if (autoGambarUrl) {
+      await hantarGambar(phoneNumber, twJawapan, autoGambarUrl);
+    } else {
+      await hantarMesej(phoneNumber, twJawapan);
+    }
 
     // Hantar gambar katalog baju yang ditanya
     var katalogBaju = null;
