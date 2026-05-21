@@ -574,7 +574,8 @@ app.post("/webhook", async function(req, res) {
       "boleh tunjuk koleksi", "tengok koleksi", "gambar semua",
       "nak tengok semua", "tengok semua", "semua design", "semua baju",
       "koleksi baju", "tunjuk semua warna", "semua warna", "semua gambar", "bagi gambar", "hantar gambar", "gambar koleksi",
-  "gambar semua koleksi", "boleh bagi", "tunjuk semua"];
+      "gambar semua koleksi", "boleh bagi", "tunjuk semua""boleh tengok", "nak tengok", "nk tengok", "nk tgk",
+      "semua gambar", "bagi gambar", "hantar gambar", "gambar koleksi", "tengok koleksi", "tunjuk semua", "gambar semua koleksi", "boleh bagi gambar"];
     if (kataKatalog.some(function(k) { return textLower.includes(k); })) {
       var bajuHistoryK = getBajuTerakhir(history, products);
       var katJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
@@ -724,27 +725,6 @@ app.post("/webhook", async function(req, res) {
           }
         });
       }
-    }
-
-    // Detect bot senarai warna — hantar gambar katalog
-    var adaSenaraWarna = jawapan.toLowerCase().includes("warna yang ada") ||
-      jawapan.toLowerCase().includes("warna yang tersedia") ||
-      jawapan.toLowerCase().includes("pilihan warna");
-
-    if (adaSenaraWarna) {
-      var bajuSenarai = getBajuTerakhir(history + " " + jawapan, products);
-      await hantarMesej(phoneNumber, jawapan);
-      if (bajuSenarai) {
-        var warnaListSenarai = products.filter(function(p) {
-          return p && p.Nama && p.Nama.toLowerCase() === bajuSenarai.toLowerCase() && p.Gambar_URL;
-        });
-        await new Promise(function(r) { setTimeout(r, 1000); });
-        for (var ws = 0; ws < warnaListSenarai.length; ws++) {
-          await hantarGambar(phoneNumber, warnaListSenarai[ws].Warna, warnaListSenarai[ws].Gambar_URL);
-          await new Promise(function(r) { setTimeout(r, 1000); });
-        }
-      }
-      return res.sendStatus(200);
     }
 
     if (autoGambarUrl) {
