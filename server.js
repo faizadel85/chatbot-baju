@@ -548,7 +548,8 @@ app.post("/webhook", async function(req, res) {
     // ===== 1. DETECT SIZE CHART =====
     var kataSizeChart = ["size chart", "measurement", "carta saiz", "ukuran baju",
       "size guide", "saiz chart", "chart size", "measurement chart",
-      "tgk chart", "nk tgk size", "nak tgk size", "chart", "sizing"];
+      "tgk chart", "nk tgk size", "nak tgk size", "chart", "sizing", "carta size", "carta saiz", "tgk carta", "tengok carta",
+      "nk tgk carta", "nak tgk carta", "size baju", "ukuran size"];
     if (kataSizeChart.some(function(k) { return textLower.includes(k); })) {
       var bajuSC = null;
       var lastIdxSC = -1;
