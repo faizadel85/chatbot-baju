@@ -527,13 +527,29 @@ app.post("/webhook", async function(req, res) {
     var kataJanji = ["kejap", "sat", "jap", "sekejap", "nanti", "later",
       "dengan anak", "dengan suami", "dengan isteri", "dengan husband",
       "dengan wife", "dengan family", "dengan mak", "dengan ayah",
-      "balik rumah", "balik kerja", "petang", "malam", "esok", "insyaallah"];
-    if (kataJanji.some(function(k) { return text.toLowerCase().includes(k); }) &&
-        followUpQueue[phoneNumber].stage === "browsing") {
-      followUpQueue[phoneNumber].hasJanji = true;
-      followUpQueue[phoneNumber].lastContext = text;
-      followUpQueue[phoneNumber].janjiAt = Date.now();
-    }
+      "balik rumah", "balik kerja", "petang", "malam", "esok", "insyaallah",
+      "mlm", "mlm nanti", "malam nanti", "petang nanti", "esok pagi",
+      "kejap lagi", "sekejap lagi", "nanti ye", "nanti saya"];
+    if (kataJanji.some(function(k) { return text.toLowerCase().includes(k); })) {
+      var historyLowerJanji = history.toLowerCase();
+      var adaCODHistory = historyLowerJanji.includes("cod") || 
+                          historyLowerJanji.includes("cash on delivery") ||
+                          historyLowerJanji.includes("order_cod");
+
+      if (followUpQueue[phoneNumber].stage === "browsing" && adaCODHistory) {
+        // COD dah confirm dalam history — tukar ke ordered
+        followUpQueue[phoneNumber].stage = "ordered";
+        followUpQueue[phoneNumber].orderedAt = Date.now();
+        followUpQueue[phoneNumber].sent3a = false;
+        followUpQueue[phoneNumber].sent3b = false;
+        followUpQueue[phoneNumber].done = false;
+        console.log("COD history detected — stage tukar ordered: " + phoneNumber);
+      } else if (followUpQueue[phoneNumber].stage === "browsing") {
+        followUpQueue[phoneNumber].hasJanji = true;
+        followUpQueue[phoneNumber].lastContext = text;
+        followUpQueue[phoneNumber].janjiAt = Date.now();
+     }
+   }
 
     // Load data
     var products = await getSheetDataCached("Sheet1");
