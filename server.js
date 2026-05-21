@@ -401,6 +401,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail) {
     "- Selepas transfer, minta resit dan nama penama akaun bank\n" +
     "- Kamu BOLEH hantar gambar — sistem akan hantar automatik\n" +
     "- JANGAN kata tidak boleh hantar gambar atau tidak boleh tunjuk gambar\n" +
+    "- Bila hantar gambar katalog, jawab ringkas: 'Ini koleksi kami Cik 😊 Ada soalan?'\n" +
+    "- JANGAN sebut 'sistem akan hantar' atau 'tunggu sebentar'\n" +
     "- LARANGAN MUTLAK: JANGAN tulis URL, link, markdown, bold dalam jawapan\n" +
     "- Flow order:\n" +
     "  1. Confirm beli → tanya lokasi (Semenanjung/Sabah/Sarawak)\n" +
@@ -582,24 +584,14 @@ app.post("/webhook", async function(req, res) {
       sesi[phoneNumber].push({ role: "assistant", content: katJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
 
-      if (bajuHistoryK) {
-        var warnaListK = products.filter(function(p) {
-          return p && p.Nama && p.Nama.toLowerCase() === bajuHistoryK.toLowerCase() && p.Gambar_URL;
-        });
-        for (var wk = 0; wk < warnaListK.length; wk++) {
-          await hantarGambar(phoneNumber, warnaListK[wk].Warna, warnaListK[wk].Gambar_URL);
-          await new Promise(function(r) { setTimeout(r, 1000); });
-        }
-      } else {
-        for (var kat = 0; kat < katalog.length; kat++) {
-          if (katalog[kat] && katalog[kat].Gambar_URL) {
-            await hantarGambar(phoneNumber, katalog[kat].Nama, katalog[kat].Gambar_URL);
-            await new Promise(function(r) { setTimeout(r, 1000); });
-          }
-        }
+    for (var kat = 0; kat < katalog.length; kat++) {
+      if (katalog[kat] && katalog[kat].Gambar_URL) {
+        await hantarGambar(phoneNumber, katalog[kat].Nama, katalog[kat].Gambar_URL);
+        await new Promise(function(r) { setTimeout(r, 1000); });
       }
-      await hantarMesej(phoneNumber, katJawapan);
-      return res.sendStatus(200);
+    }
+    await hantarMesej(phoneNumber, katJawapan);
+    return res.sendStatus(200);
     }
 
     // ===== 3. DETECT BAJU + WARNA SPECIFIC =====
