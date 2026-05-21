@@ -573,28 +573,44 @@ app.post("/webhook", async function(req, res) {
     }
 
     // ===== 2. DETECT SEMUA KATALOG =====
-    var kataKatalog = ["tengok gambar semua", "tunjuk semua design",
-      "boleh tunjuk koleksi", "tengok koleksi", "gambar semua",
-      "nak tengok semua", "tengok semua", "semua design", "semua baju",
-      "koleksi baju", "tunjuk semua warna", "semua warna", "semua gambar", "bagi gambar", "hantar gambar", "gambar koleksi",
-      "gambar semua koleksi", "boleh bagi", "tunjuk semua", "boleh tengok", "nak tengok", "nk tengok", "nk tgk",
-      "semua gambar", "bagi gambar", "hantar gambar", "gambar koleksi", "tengok koleksi", "tunjuk semua", "gambar semua koleksi", "boleh bagi gambar"];
+    var kataKatalog = [
+      "tengok gambar semua", "tunjuk semua design",
+      "boleh tunjuk koleksi", "tengok koleksi",
+      "nak tengok semua koleksi", "semua design", "semua baju",
+      "koleksi baju", "gambar koleksi", "semua koleksi",
+     "tunjuk koleksi", "gambar semua koleksi", "tengok koleksi semua"
+    ];
     if (kataKatalog.some(function(k) { return textLower.includes(k); })) {
       var bajuHistoryK = getBajuTerakhir(history, products);
       var katJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
       sesi[phoneNumber].push({ role: "assistant", content: katJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
 
-    for (var kat = 0; kat < katalog.length; kat++) {
-      if (katalog[kat] && katalog[kat].Gambar_URL) {
-        await hantarGambar(phoneNumber, katalog[kat].Nama, katalog[kat].Gambar_URL);
-        await new Promise(function(r) { setTimeout(r, 1000); });
+      if (bajuHistoryK) {
+       // Ada baju dalam history — hantar gambar katalog baju tu sahaja
+       var katalogBajuK = katalog.find(function(k) {
+         return k && k.Nama && (
+           k.Nama.toLowerCase().includes(bajuHistoryK.toLowerCase()) ||
+           bajuHistoryK.toLowerCase().includes(k.Nama.toLowerCase())
+         );
+       });
+       if (katalogBajuK && katalogBajuK.Gambar_URL) {
+         await hantarGambar(phoneNumber, katJawapan, katalogBajuK.Gambar_URL);
+       } else {
+         await hantarMesej(phoneNumber, katJawapan);
+       }
+     } else {
+      // Tiada baju dalam history — hantar semua katalog
+      for (var kat = 0; kat < katalog.length; kat++) {
+        if (katalog[kat] && katalog[kat].Gambar_URL) {
+          await hantarGambar(phoneNumber, katalog[kat].Nama, katalog[kat].Gambar_URL);
+          await new Promise(function(r) { setTimeout(r, 1000); });
+        }
       }
+      await hantarMesej(phoneNumber, katJawapan);
     }
-    await hantarMesej(phoneNumber, katJawapan);
     return res.sendStatus(200);
-    }
-
+  }
     // ===== 3. DETECT BAJU + WARNA SPECIFIC =====
     var bajuFound = null;
     var warnaFound = null;
