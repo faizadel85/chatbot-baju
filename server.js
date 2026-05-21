@@ -522,6 +522,28 @@ app.post("/webhook", async function(req, res) {
 
     if (!from || !text) return res.sendStatus(200);
 
+   // Detect reset command
+   if (text.trim() === "/reset") {
+     sesi[phoneNumber] = [];
+     await simpanSesi(phoneNumber, []);
+     followUpQueue[phoneNumber] = {
+       stage: "browsing",
+       lastReply: Date.now(),
+       sent1: false,
+       sent1b: false,
+       sent2: false,
+       sent3a: false,
+       sent3b: false,
+       hasJanji: false,
+       lastContext: "",
+       janjiAt: null,
+       orderedAt: null,
+       done: false
+     };
+     await hantarMesej(phoneNumber, "Sesi telah direset. Boleh saya bantu Cik? 😊");
+     return res.sendStatus(200);
+   }
+
     // Check prompt injection
     if (detectPromptInjection(text)) {
       console.log("Prompt injection dari: " + phoneNumber);
