@@ -330,7 +330,7 @@ setInterval(async function() {
       if (q.hasJanji && !q.sent1b && q.janjiAt && (now - q.janjiAt) >= 3 * 60 * 60 * 1000) {
         try {
           var contextResponse = await claude.messages.create({
-            model: "claude-haiku-4-5",
+            model: "claude-haiku-4-5-20251001",
             max_tokens: 150,
             temperature: 0,
             messages: [{
@@ -689,7 +689,7 @@ app.post("/webhook", async function(req, res) {
 
       // Dapatkan jawapan Claude
       var katResponse = await claude.messages.create({
-        model: "claude-haiku-4-5",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 200,
         temperature: 0,
         system: systemPrompt,
@@ -737,7 +737,7 @@ app.post("/webhook", async function(req, res) {
       });
 
       var psResponse = await claude.messages.create({
-        model: "claude-haiku-4-5",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 300,
         temperature: 0,
         system: systemPrompt,
@@ -772,7 +772,7 @@ app.post("/webhook", async function(req, res) {
     var extraInstruction = "Pelanggan tanya warna untuk " + bajuTanya + ". Warna yang ada: " + warnaAvailable.join(", ") + ". Kalau warna yang ditanya takde, beritahu dengan mesra dan cadang warna yang ada.";
   
     var twResponse = await claude.messages.create({
-      model: "claude-haiku-4-5",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 300,
       temperature: 0,
       system: systemPrompt + "\n\nMAKLUMAT TAMBAHAN: " + extraInstruction,
@@ -800,7 +800,7 @@ app.post("/webhook", async function(req, res) {
       });
 
       var wsResponse = await claude.messages.create({
-        model: "claude-haiku-4-5",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 300,
         temperature: 0,
         system: systemPrompt,
@@ -836,7 +836,7 @@ app.post("/webhook", async function(req, res) {
     while (cuba < 3) {
       try {
         response = await claude.messages.create({
-          model: "claude-haiku-4-5",
+          model: "claude-haiku-4-5-20251001",
           max_tokens: 500,
           temperature: 0,
           system: systemPrompt,
