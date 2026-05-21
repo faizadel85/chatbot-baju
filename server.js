@@ -574,7 +574,7 @@ app.post("/webhook", async function(req, res) {
       "boleh tunjuk koleksi", "tengok koleksi", "gambar semua",
       "nak tengok semua", "tengok semua", "semua design", "semua baju",
       "koleksi baju", "tunjuk semua warna", "semua warna", "semua gambar", "bagi gambar", "hantar gambar", "gambar koleksi",
-      "gambar semua koleksi", "boleh bagi", "tunjuk semua""boleh tengok", "nak tengok", "nk tengok", "nk tgk",
+      "gambar semua koleksi", "boleh bagi", "tunjuk semua", "boleh tengok", "nak tengok", "nk tengok", "nk tgk",
       "semua gambar", "bagi gambar", "hantar gambar", "gambar koleksi", "tengok koleksi", "tunjuk semua", "gambar semua koleksi", "boleh bagi gambar"];
     if (kataKatalog.some(function(k) { return textLower.includes(k); })) {
       var bajuHistoryK = getBajuTerakhir(history, products);
