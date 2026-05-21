@@ -884,6 +884,7 @@ app.post("/webhook", async function(req, res) {
      if (uniqueNamaAuto.indexOf(p.Nama) === -1) uniqueNamaAuto.push(p.Nama);
    });
    uniqueNamaAuto.forEach(function(nama) {
+     if (!nama) return;
      var idx = historyGambar.lastIndexOf(nama.toLowerCase());
      if (idx > lastIdxAuto) { lastIdxAuto = idx; bajuTerakhir = nama; }
    });
