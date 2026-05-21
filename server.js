@@ -416,7 +416,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail) {
     "  4. COD → tulis ORDER_COD_CONFIRMED\n" +
     "  4b. Resit bank transfer → tulis ORDER_RECEIPT_RECEIVED\n" +
     "  5. Minta details penghantaran\n" +
-    "  6. Semua details lengkap → tulis: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|postage|total|kaedahbayar|penamaakaun|nota\n" +
+    "  6. Semua details lengkap → WAJIB tulis tepat seperti ini tanpa ubah format: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|postage|total|kaedahbayar|penamaakaun|nota\n" +
+    "  PENTING: ORDER_CONFIRMED mesti ditulis dalam jawapan — ini adalah trigger sistem untuk simpan order. Tanpa ORDER_CONFIRMED, order tidak akan disimpan!\n" +
     "- JANGAN minta details sebelum resit atau COD confirm\n" +
     "- Jika tanya size chart, jawab: Ini size chart untuk Cik 😊\n" +
     "- WAJIB: Setiap jawapan ada soalan susulan\n" +
