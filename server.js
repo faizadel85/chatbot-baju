@@ -869,8 +869,44 @@ app.post("/webhook", async function(req, res) {
 
     var jawapan = response.content[0].text;
 
-   // Auto detect gambar berdasarkan history — tak bergantung Claude
+   // Auto detect gambar — hanya kalau buyer tanya gambar/warna
    var autoGambarUrl = null;
+   var kataGambarAuto = [
+     "gambar", "warna", "contoh", "tunjuk", "tengok",
+     "tgk", "show", "colour", "color", "lihat"
+   ];
+   var buyerTanyaGambar = kataGambarAuto.some(function(kata) {
+     return text.toLowerCase().includes(kata);
+   });
+
+   if (buyerTanyaGambar) {
+    var historyGambar = sesi[phoneNumber].map(function(m) {
+      return m.content;
+    }).join(" ").toLowerCase();
+
+    var bajuTerakhir = null;
+    var lastIdxAuto = -1;
+    var uniqueNamaAuto = [];
+    products.forEach(function(p) {
+      if (!p.Nama) return;
+      if (uniqueNamaAuto.indexOf(p.Nama) === -1) uniqueNamaAuto.push(p.Nama);
+    });
+    uniqueNamaAuto.forEach(function(nama) {
+      if (!nama) return;
+      var idx = historyGambar.lastIndexOf(nama.toLowerCase());
+      if (idx > lastIdxAuto) { lastIdxAuto = idx; bajuTerakhir = nama; }
+    });
+
+    if (bajuTerakhir) {
+      products.forEach(function(p) {
+        if (!p || !p.Nama || !p.Warna || !p.Gambar_URL) return;
+        if (p.Nama.toLowerCase() === bajuTerakhir.toLowerCase() &&
+            jawapan.toLowerCase().includes(p.Warna.toLowerCase())) {
+          autoGambarUrl = p.Gambar_URL;
+        }
+      });
+    }
+  }
    var historyGambar = sesi[phoneNumber].map(function(m) { 
      return m.content; 
    }).join(" ").toLowerCase();
