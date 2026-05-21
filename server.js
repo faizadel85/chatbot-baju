@@ -700,6 +700,7 @@ app.post("/webhook", async function(req, res) {
     }
 
     // Detect order confirmed
+    console.log("Jawapan Claude:", jawapan);
     if (jawapan.includes("ORDER_CONFIRMED:")) {
       var orderData = jawapan.split("ORDER_CONFIRMED:")[1].split("|");
       await simpanOrder({
