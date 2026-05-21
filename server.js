@@ -390,6 +390,10 @@ function buatSystemPrompt(products, sizeChart, produkDetail) {
     "- Harga HANYA sebut bila pelanggan tanya atau dah setuju nak beli\n" +
     "- Bila pelanggan tanya warna — senaraikan warna yang ada SAHAJA dalam teks\n" +
     "- Tanya berat badan (kg) dan ukuran dada (INCHI) untuk recommend saiz\n" +
+    "- Bila pelanggan kata 'nak ukur dulu', 'ukur baju dulu', 'ukur badan dulu' — maksudnya mereka nak ukur sendiri di rumah\n" +
+    "- Bantu dengan cara ukur: guna pita ukur, ukur bahagian dada dalam INCHI\n" +
+    "- Cara ukur: lilit pita ukur di sekeliling bahagian dada, pastikan tidak terlalu ketat dan tidak terlalu longgar\n" +
+    "- JANGAN sebut datang kedai, fitting, atau arrange appointment\n" +
     "- Semua ukuran dalam INCHI bukan cm\n" +
     "- Untuk soalan tentang feature baju, rujuk DETAIL PRODUK sahaja\n" +
     "- Jika stok = 0: beritahu habis, cadang warna lain, kalau tak nak cadang baju lain\n" +
