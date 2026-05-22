@@ -314,6 +314,75 @@ setInterval(async function() {
   }
 }, 30 * 1000);
 
+// ===== CHECK ORDER STATUS =====
+setInterval(async function() {
+  try {
+    var auth = await getGoogleAuth();
+    var sheets = google.sheets({ version: "v4", auth });
+
+    var result = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: "Orders!A:T"
+    });
+
+    var rows = result.data.values || [];
+    if (rows.length <= 1) return;
+
+    for (var i = 1; i < rows.length; i++) {
+      var row = rows[i];
+      var noTel = row[2] || "";
+      var status = row[14] || "";
+      var trackingNo = row[15] || "";
+      var courier = row[16] || "";
+      var notifiedPacked = row[17] || "";
+      var notifiedShipped = row[18] || "";
+
+      if (!noTel) continue;
+
+      // Notif Packed
+      if (status === "Packed" && notifiedPacked !== "Yes") {
+        await hantarMesej(noTel, "Assalamualaikum Cik! 😊\n\nOrder Cik sedang dipacking sekarang.\nKami akan maklumkan bila dah dihantar ya ❤️");
+
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: SHEET_ID,
+          range: "Orders!R" + (i + 1),
+          valueInputOption: "RAW",
+          resource: { values: [["Yes"]] }
+        });
+        console.log("Notif Packed dihantar ke: " + noTel);
+      }
+
+      // Notif Shipped
+      if (status === "Shipped" && notifiedShipped !== "Yes" && trackingNo) {
+        var courierUrl = "";
+        if (courier.toLowerCase().includes("j&t")) courierUrl = "www.jtexpress.my";
+        else if (courier.toLowerCase().includes("poslaju")) courierUrl = "www.poslaju.com.my";
+        else if (courier.toLowerCase().includes("ninja")) courierUrl = "www.ninjavan.co/ms-my";
+        else if (courier.toLowerCase().includes("gdex")) courierUrl = "www.gdexpress.com";
+
+        var notifShipped = "Assalamualaikum Cik! 😊\n\n" +
+          "Order Cik telah dihantar!\n" +
+          "Courier: " + courier + "\n" +
+          "No Tracking: " + trackingNo + "\n\n" +
+          (courierUrl ? "Track di: " + courierUrl + "\n" : "") +
+          "Anggaran tiba: 3-5 hari bekerja ❤️";
+
+        await hantarMesej(noTel, notifShipped);
+
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: SHEET_ID,
+          range: "Orders!S" + (i + 1),
+          valueInputOption: "RAW",
+          resource: { values: [["Yes"]] }
+        });
+        console.log("Notif Shipped dihantar ke: " + noTel);
+      }
+    }
+  } catch (err) {
+    console.error("Error check order status:", err);
+  }
+}, 2 * 60 * 1000); // Check setiap 2 minit
+
 // ===== GOOGLE SHEET =====
 async function getSheetData(sheetName) {
   try {
