@@ -868,7 +868,8 @@ app.post("/webhook", async function(req, res) {
       var claudeTanyaSaiz = [
         "berat badan", "ukuran dada", "recommend saiz",
         "saiz yang sesuai", "perlukan maklumat", "boleh beritahu berat"
-      ].some(function(k) { return jawapan.toLowerCase().includes(k); });
+      ].some(function(k) { return jawapan.toLowerCase().includes(k); }) &&
+      !(bajuFound && warnaFound);
 
       if (claudeTanyaSaiz) {
         var bajuTerakhirSC = getBajuTerakhir(history + " " + jawapan, products);
