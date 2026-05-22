@@ -537,6 +537,31 @@ app.post("/webhook", async function(req, res) {
 
     if (!from || !text) return res.sendStatus(200);
 
+   // ===== STOP LIST =====
+   if (!global.stopList) global.stopList = {};
+
+  // Admin commands — dari nombor admin sahaja
+  if (phoneNumber === "601123726341") {
+    if (text.startsWith("/stop ")) {
+      var stopNum = text.replace("/stop ", "").trim();
+      global.stopList[stopNum] = true;
+      await hantarMesej(phoneNumber, "Bot distop untuk: " + stopNum + " ✅");
+      return res.sendStatus(200);
+    }
+    if (text.startsWith("/start ")) {
+      var startNum = text.replace("/start ", "").trim();
+      delete global.stopList[startNum];
+      await hantarMesej(phoneNumber, "Bot diaktif semula untuk: " + startNum + " ✅");
+      return res.sendStatus(200);
+   }
+ }
+
+  // Check stop list
+  if (global.stopList[phoneNumber]) {
+    console.log("Bot distop untuk: " + phoneNumber);
+    return res.sendStatus(200);
+  }
+
     // Reset command
     if (text.trim() === "/reset") {
       sesi[phoneNumber] = [];
