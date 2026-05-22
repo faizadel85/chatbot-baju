@@ -240,7 +240,7 @@ async function callClaude(systemPrompt, messages, maxTokens) {
   while (cuba < 3) {
     try {
       var response = await claude.messages.create({
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-sonnet-4-5",
         max_tokens: maxTokens || 500,
         temperature: 0,
         system: systemPrompt,
