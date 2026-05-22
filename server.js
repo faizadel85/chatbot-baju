@@ -472,6 +472,10 @@ function buatSystemPrompt(products, sizeChart, produkDetail) {
     "- Kadar Postage Semenanjung: 1pcs RM6, 2-5pcs RM4/pcs, 6pcs ke atas RM2/pcs\n" +
     "- Kadar Postage Sabah & Sarawak: 1pcs RM13, 2-5pcs RM8/pcs, 6pcs ke atas RM6/pcs\n" +
     "- Maklumat Akaun Bank: MAYBANK | Adel Adyana Elegance | 551100323485\n" +
+    "- Anggaran masa penghantaran:\n" +
+    "  Semenanjung Malaysia: 3-5 hari bekerja\n" +
+    "  Sabah & Sarawak: 5-7 hari bekerja\n" +
+    "- Bila pelanggan tanya bila sampai atau berapa lama hantar, jawab berdasarkan lokasi mereka\n" +
     "- Selepas transfer, minta resit dan nama penama akaun bank\n" +
     "- Kamu BOLEH hantar gambar — sistem akan hantar automatik\n" +
     "- JANGAN kata tidak boleh hantar gambar atau tidak boleh tunjuk gambar\n" +
