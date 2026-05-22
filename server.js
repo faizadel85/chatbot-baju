@@ -522,7 +522,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks) {
     "- WAJIB: Setiap jawapan ada soalan susulan\n" +
     "- Jawapan teks biasa sahaja\n" +
     "- JANGAN tambah ucapan perayaan (hari raya, christmas, tahun baru dll) melainkan buyer sebut dulu\n" +
-    "- JANGAN tambah ayat perpisahan panjang — maksimum 1 ayat ringkas sahaja\n" +
+    "- JANGAN tambah ayat perpisahan panjang — maksimum 1 ayat ringkas sahaja";
 }
 
 // ===== HEALTH CHECK =====
