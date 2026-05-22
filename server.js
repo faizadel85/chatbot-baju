@@ -168,11 +168,11 @@ function getBajuTerakhir(history, products) {
 }
 
 function sanitizeJawapan(text) {
-  text = text.replace(/!\[.?\]\(.?\)/g, "");
-  text = text.replace(/\[.?\]\(.?\)/g, "");
+  text = text.replace(/!\[.*?\]\(.*?\)/g, "");
+  text = text.replace(/\[.*?\]\(.*?\)/g, "");
   text = text.replace(/https?:\/\/\S+/g, "");
-  text = text.replace(/\\(.?)\\*/g, "$1");
-  text = text.replace(/\([^]+)\*/g, "$1");
+  text = text.replace(/\*\*(.*?)\*\*/g, "$1");
+  text = text.replace(/\*([^*]+)\*/g, "$1"); // italic
   text = text.replace(/\n{3,}/g, "\n\n");
   return text.trim();
 }
