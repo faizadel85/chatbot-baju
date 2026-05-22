@@ -477,10 +477,11 @@ function buatSystemPrompt(products, sizeChart, produkDetail) {
     "  Sabah & Sarawak: 5-7 hari bekerja\n" +
     "- Bila pelanggan tanya bila sampai atau berapa lama hantar, jawab berdasarkan lokasi mereka\n" +
     "- Selepas transfer, minta resit dan nama penama akaun bank\n" +
-    "- Kamu BOLEH hantar gambar — sistem akan hantar automatik\n" +
-    "- JANGAN kata tidak boleh hantar gambar atau tidak boleh tunjuk gambar\n" +
-    "- Bila hantar gambar katalog, jawab ringkas: 'Ini koleksi kami Cik 😊 Ada soalan?'\n" +
-    "- JANGAN sebut 'sistem akan hantar' atau 'tunggu sebentar'\n" +
+    "- Kamu BOLEH hantar gambar — gambar akan dihantar automatik\n" +
+    "- JANGAN kata tidak boleh hantar gambar\n" +
+    "- JANGAN tulis placeholder seperti [Sistem akan hantar gambar] atau [gambar katalog]\n" +
+    "- JANGAN sebut 'sistem akan hantar', 'tunggu sebentar', 'saya hantar sekarang'\n" +
+    "- Terus jawab natural sahaja, gambar akan keluar automatik\n" +
     "- LARANGAN MUTLAK: JANGAN tulis URL, link, markdown, bold dalam jawapan\n" +
     "- Flow order:\n" +
     "  1. Confirm beli → tanya lokasi (Semenanjung/Sabah/Sarawak)\n" +
@@ -804,18 +805,35 @@ app.post("/webhook", async function(req, res) {
 
    if (claudeNakHantarGambar) {
      var bajuTerakhirC = getBajuTerakhir(history, products);
-     var katalogBajuC = katalog.find(function(k) {
-       return k && k.Nama && bajuTerakhirC &&
-         k.Nama.toLowerCase().includes(bajuTerakhirC.toLowerCase());
-     });
-     if (katalogBajuC && katalogBajuC.Gambar_URL) {
-       await hantarGambar(phoneNumber, jawapan, katalogBajuC.Gambar_URL);
-       sesi[phoneNumber].push({ role: "assistant", content: jawapan });
-       await simpanSesi(phoneNumber, sesi[phoneNumber]);
-       return res.sendStatus(200);
-     }
-   }
 
+     // Semak warna specific yang disebut dalam jawapan Claude
+     var produkDisebut = null;
+     products.forEach(function(p) {
+       if (!p || !p.Nama || !p.Warna || !p.Gambar_URL) return;
+       if (bajuTerakhirC && p.Nama.toLowerCase() === bajuTerakhirC.toLowerCase() &&
+           jawapan.toLowerCase().includes(p.Warna.toLowerCase())) {
+        if (!produkDisebut) produkDisebut = p;
+      }
+    });
+
+    if (produkDisebut) {
+      await hantarGambar(phoneNumber, jawapan, produkDisebut.Gambar_URL);
+    } else {
+      var katalogBajuC = katalog.find(function(k) {
+        return k && k.Nama && bajuTerakhirC &&
+          k.Nama.toLowerCase().includes(bajuTerakhirC.toLowerCase());
+      });
+      if (katalogBajuC && katalogBajuC.Gambar_URL) {
+        await hantarGambar(phoneNumber, jawapan, katalogBajuC.Gambar_URL);
+      } else {
+        await hantarMesej(phoneNumber, jawapan);
+      }
+    }
+    sesi[phoneNumber].push({ role: "assistant", content: jawapan });
+    await simpanSesi(phoneNumber, sesi[phoneNumber]);
+    return res.sendStatus(200);
+  }
+   
      // Auto hantar gambar katalog untuk first contact
      var bajuDalamJawapan = null;
      var uniqueNamaAllJ = [];
