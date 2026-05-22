@@ -11,7 +11,6 @@ const WASSENGER_TOKEN = process.env.WASSENGER_TOKEN;
 const SHEET_ID = "1lz5K8te2CihyjBcHht4FH4j21Sir1EzNwapGlIQfvb8";
 const sesi = {};
 
-// ===== GUARDRAIL =====
 function detectPromptInjection(text) {
   var attacks = [
     "ignore previous", "ignore above", "ignore all",
@@ -26,12 +25,9 @@ function detectPromptInjection(text) {
     "abaikan semua", "arahan baru", "peranan baru"
   ];
   var textLower = text.toLowerCase();
-  return attacks.some(function(attack) {
-    return textLower.includes(attack);
-  });
+  return attacks.some(function(attack) { return textLower.includes(attack); });
 }
 
-// ===== GOOGLE AUTH =====
 async function getGoogleAuth() {
   var credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
   var auth = new google.auth.GoogleAuth({
@@ -41,7 +37,6 @@ async function getGoogleAuth() {
   return auth;
 }
 
-// ===== CACHE =====
 var sheetCache = {};
 var CACHE_DURATION = 1 * 60 * 1000;
 
@@ -55,54 +50,37 @@ async function getSheetDataCached(sheetName) {
   return data;
 }
 
-// ===== SIMPAN SESI =====
 async function simpanSesi(phoneNumber, messages) {
   try {
     var auth = await getGoogleAuth();
     var sheets = google.sheets({ version: "v4", auth });
-    var result = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: "Sessions!A:A"
-    });
+    var result = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: "Sessions!A:A" });
     var rows = result.data.values || [];
     var rowIndex = -1;
     for (var i = 0; i < rows.length; i++) {
-      if (rows[i][0] === phoneNumber) {
-        rowIndex = i + 1;
-        break;
-      }
+      if (rows[i][0] === phoneNumber) { rowIndex = i + 1; break; }
     }
     var now = new Date().toISOString();
     var messagesJson = JSON.stringify(messages.slice(-20));
     if (rowIndex > 0) {
       await sheets.spreadsheets.values.update({
-        spreadsheetId: SHEET_ID,
-        range: "Sessions!A" + rowIndex + ":C" + rowIndex,
-        valueInputOption: "RAW",
-        resource: { values: [[phoneNumber, now, messagesJson]] }
+        spreadsheetId: SHEET_ID, range: "Sessions!A" + rowIndex + ":C" + rowIndex,
+        valueInputOption: "RAW", resource: { values: [[phoneNumber, now, messagesJson]] }
       });
     } else {
       await sheets.spreadsheets.values.append({
-        spreadsheetId: SHEET_ID,
-        range: "Sessions!A:C",
-        valueInputOption: "RAW",
-        resource: { values: [[phoneNumber, now, messagesJson]] }
+        spreadsheetId: SHEET_ID, range: "Sessions!A:C",
+        valueInputOption: "RAW", resource: { values: [[phoneNumber, now, messagesJson]] }
       });
     }
-  } catch (err) {
-    console.error("Error simpan sesi:", err);
-  }
+  } catch (err) { console.error("Error simpan sesi:", err); }
 }
 
-// ===== LOAD SESI =====
 async function loadSesi(phoneNumber) {
   try {
     var auth = await getGoogleAuth();
     var sheets = google.sheets({ version: "v4", auth });
-    var result = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: "Sessions!A:C"
-    });
+    var result = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: "Sessions!A:C" });
     var rows = result.data.values || [];
     for (var i = 0; i < rows.length; i++) {
       if (rows[i][0] === phoneNumber) {
@@ -115,79 +93,38 @@ async function loadSesi(phoneNumber) {
       }
     }
     return [];
-  } catch (err) {
-    console.error("Error load sesi:", err);
-    return [];
-  }
+  } catch (err) { console.error("Error load sesi:", err); return []; }
 }
 
-// ===== SIMPAN ORDER =====
 async function simpanOrder(data) {
   try {
     var auth = await getGoogleAuth();
     var sheets = google.sheets({ version: "v4", auth });
     var tarikh = new Date().toLocaleString("ms-MY", { timeZone: "Asia/Kuala_Lumpur" });
     await sheets.spreadsheets.values.append({
-      spreadsheetId: SHEET_ID,
-      range: "Orders!A:O",
-      valueInputOption: "RAW",
-      resource: {
-        values: [[
-          tarikh,
-          data.nama || "",
-          data.noTel || "",
-          data.alamat || "",
-          data.poskod || "",
-          data.bandar || "",
-          data.negeri || "",
-          data.produk || "",
-          data.saiz || "",
-          data.warna || "",
-          data.harga || "",
-          data.kaedahBayar || "",
-          data.penamaakaun || "",
-          "Baru",
-          data.nota || ""
-        ]]
-      }
+      spreadsheetId: SHEET_ID, range: "Orders!A:O", valueInputOption: "RAW",
+      resource: { values: [[tarikh, data.nama||"", data.noTel||"", data.alamat||"", data.poskod||"",
+        data.bandar||"", data.negeri||"", data.produk||"", data.saiz||"", data.warna||"",
+        data.harga||"", data.kaedahBayar||"", data.penamaakaun||"", "Baru", data.nota||""]] }
     });
     console.log("Order disimpan!");
-    var notifMsg = "ORDER BARU!\n\n" +
-      "Nama: " + (data.nama || "") + "\n" +
-      "No Tel: " + (data.noTel || "") + "\n" +
-      "Produk: " + (data.produk || "") + "\n" +
-      "Warna: " + (data.warna || "") + "\n" +
-      "Saiz: " + (data.saiz || "") + "\n" +
-      "Harga: RM" + (data.harga || "") + "\n" +
-      "Postage: RM" + (data.postage || "") + "\n" +
-      "Total: RM" + (data.total || "") + "\n\n" +
-      "Alamat: " + (data.alamat || "") + "\n" +
-      "Poskod: " + (data.poskod || "") + "\n" +
-      "Bandar: " + (data.bandar || "") + "\n" +
-      "Negeri: " + (data.negeri || "") + "\n\n" +
-      "Kaedah Bayar: " + (data.kaedahBayar || "") + "\n" +
-      "Penama Akaun: " + (data.penamaakaun || "") + "\n" +
-      "Nota: " + (data.nota || "");
+    var notifMsg = "ORDER BARU!\n\nNama: "+(data.nama||"")+"\nNo Tel: "+(data.noTel||"")+
+      "\nProduk: "+(data.produk||"")+"\nWarna: "+(data.warna||"")+"\nSaiz: "+(data.saiz||"")+
+      "\nHarga: RM"+(data.harga||"")+"\nPostage: RM"+(data.postage||"")+"\nTotal: RM"+(data.total||"")+
+      "\n\nAlamat: "+(data.alamat||"")+"\nPoskod: "+(data.poskod||"")+"\nBandar: "+(data.bandar||"")+
+      "\nNegeri: "+(data.negeri||"")+"\n\nKaedah Bayar: "+(data.kaedahBayar||"")+
+      "\nPenama Akaun: "+(data.penamaakaun||"")+"\nNota: "+(data.nota||"");
     await hantarMesej("601123726341", notifMsg);
-  } catch (err) {
-    console.error("Error simpan order:", err);
-  }
+  } catch (err) { console.error("Error simpan order:", err); }
 }
 
-// ===== HANTAR MESEJ =====
 async function hantarMesej(phoneNumber, mesej) {
-  if (!mesej || !mesej.trim()) {
-    console.error("Mesej kosong — skip hantar");
-    return;
-  }
+  if (!mesej || !mesej.trim()) { console.error("Mesej kosong — skip hantar"); return; }
   var cuba = 0;
   while (cuba < 3) {
     try {
-      await axios.post(
-        "https://api.wassenger.com/v1/messages",
-        { phone: phoneNumber, message: mesej },
-        { headers: { Token: WASSENGER_TOKEN } }
-      );
+      await axios.post("https://api.wassenger.com/v1/messages",
+        { phone: phoneNumber, message: mesej }, { headers: { Token: WASSENGER_TOKEN } });
       return;
     } catch (err) {
       cuba++;
@@ -197,17 +134,14 @@ async function hantarMesej(phoneNumber, mesej) {
   }
 }
 
-// ===== HANTAR GAMBAR =====
 async function hantarGambar(phoneNumber, mesej, gambarUrl) {
   if (!mesej || !mesej.trim()) mesej = "😊";
   var cuba = 0;
   while (cuba < 3) {
     try {
-      await axios.post(
-        "https://api.wassenger.com/v1/messages",
+      await axios.post("https://api.wassenger.com/v1/messages",
         { phone: phoneNumber, message: mesej, media: { url: gambarUrl } },
-        { headers: { Token: WASSENGER_TOKEN } }
-      );
+        { headers: { Token: WASSENGER_TOKEN } });
       return;
     } catch (err) {
       cuba++;
@@ -217,7 +151,6 @@ async function hantarGambar(phoneNumber, mesej, gambarUrl) {
   }
 }
 
-// ===== DAPATKAN BAJU TERAKHIR DALAM HISTORY =====
 function getBajuTerakhir(history, products) {
   var historyLower = history.toLowerCase();
   var bajuTerakhir = null;
@@ -234,34 +167,23 @@ function getBajuTerakhir(history, products) {
   return bajuTerakhir;
 }
 
-// ===== SANITIZE JAWAPAN =====
 function sanitizeJawapan(text) {
-  // Buang markdown image: ![text](url)
-  text = text.replace(/!\[.*?\]\(.*?\)/g, "");
-  // Buang markdown link: [text](url)
-  text = text.replace(/\[.*?\]\(.*?\)/g, "");
-  // Buang URL bare
+  text = text.replace(/!\[.?\]\(.?\)/g, "");
+  text = text.replace(/\[.?\]\(.?\)/g, "");
   text = text.replace(/https?:\/\/\S+/g, "");
-  // Buang bold markdown: **text**
-  text = text.replace(/\*\*(.*?)\*\*/g, "$1");
-  // Buang italic markdown: *text*
-  text = text.replace(/\*([^*]+)\*/g, "$1");
-  // Buang baris kosong berganda
+  text = text.replace(/\\(.?)\\*/g, "$1");
+  text = text.replace(/\([^]+)\*/g, "$1");
   text = text.replace(/\n{3,}/g, "\n\n");
   return text.trim();
 }
 
-// ===== CLAUDE API CALL =====
 async function callClaude(systemPrompt, messages, maxTokens) {
   var cuba = 0;
   while (cuba < 3) {
     try {
       var response = await claude.messages.create({
-        model: "claude-sonnet-4-5",
-        max_tokens: maxTokens || 500,
-        temperature: 0,
-        system: systemPrompt,
-        messages: messages
+        model: "claude-sonnet-4-5", max_tokens: maxTokens || 500, temperature: 0,
+        system: systemPrompt, messages: messages
       });
       return response.content[0].text;
     } catch (err) {
@@ -272,9 +194,7 @@ async function callClaude(systemPrompt, messages, maxTokens) {
   }
 }
 
-// ===== STAGE FOLLOW UP =====
 var followUpQueue = {};
-
 var MSG_STAGE1 = "Assalamualaikum 🫶🏻 Cik cari size dan warna apa ya?\n\nAtau nak saya bantu dapatkan size yg sesuai untuk Cik?";
 var MSG_STAGE2 = "Assalamualaikum! Semoga Cik dalam keadaan baik & semoga urusan kita sama² dipermudahkan hari ini 😊\n\nCik ada tekan link iklan saya dari FB/IG. Saya sangat-sangat hargai respon Cik 💕\n\nCik tengah cari warna dan size apa ya? Ada apa boleh saya bantu?";
 var MSG_STAGE3A = "Salam Cik 😊\n\nSaya nak follow-up order Cik tadi ya. Untuk proceed packing, boleh send resit payment bila sempat 🙏\n\nStock design ni tengah laju keluar hari ni 😊";
@@ -285,7 +205,6 @@ setInterval(async function() {
   for (var phone in followUpQueue) {
     var q = followUpQueue[phone];
     if (q.done) continue;
-
     if (q.stage === "browsing") {
       if (!q.sent1 && !q.hasJanji && (now - q.lastReply) >= 60 * 60 * 1000) {
         await hantarMesej(phone, MSG_STAGE1);
@@ -296,16 +215,12 @@ setInterval(async function() {
         try {
           var followUp1b = await callClaude(
             "Tulis follow up WhatsApp mesra Bahasa Malaysia. 2-3 ayat pendek. Panggil Cik. Jangan sebut harga. Teks biasa sahaja.",
-            [{ role: "user", content: "Buyer kata: '" + q.lastContext + "'. Tulis follow up." }],
-            150
-          );
+            [{ role: "user", content: "Buyer kata: '" + q.lastContext + "'. Tulis follow up." }], 150);
           await hantarMesej(phone, followUp1b);
           followUpQueue[phone].sent1b = true;
           followUpQueue[phone].sent1 = true;
           console.log("Stage 1b sent to " + phone);
-        } catch (err) {
-          console.error("Error stage 1b:", err.message);
-        }
+        } catch (err) { console.error("Error stage 1b:", err.message); }
       }
       if (q.sent1 && !q.sent2 && (now - q.lastReply) >= 24 * 60 * 60 * 1000) {
         await hantarMesej(phone, MSG_STAGE2);
@@ -314,7 +229,6 @@ setInterval(async function() {
         console.log("Stage 2 sent to " + phone);
       }
     }
-
     if (q.stage === "ordered") {
       if (!q.sent3a && q.orderedAt && (now - q.orderedAt) >= 3 * 60 * 60 * 1000) {
         await hantarMesej(phone, MSG_STAGE3A);
@@ -331,20 +245,13 @@ setInterval(async function() {
   }
 }, 30 * 1000);
 
-// ===== CHECK ORDER STATUS =====
 setInterval(async function() {
   try {
     var auth = await getGoogleAuth();
     var sheets = google.sheets({ version: "v4", auth });
-
-    var result = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: "Orders!A:T"
-    });
-
+    var result = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: "Orders!A:T" });
     var rows = result.data.values || [];
     if (rows.length <= 1) return;
-
     for (var i = 1; i < rows.length; i++) {
       var row = rows[i];
       var noTel = row[2] || "";
@@ -353,52 +260,31 @@ setInterval(async function() {
       var courier = row[16] || "";
       var notifiedPacked = row[17] || "";
       var notifiedShipped = row[18] || "";
-
       if (!noTel) continue;
-
-      // Notif Packed
       if (status === "Packed" && notifiedPacked !== "Yes") {
         await hantarMesej(noTel, "Assalamualaikum Cik! 😊\n\nOrder Cik sedang dipacking sekarang.\nKami akan maklumkan bila dah dihantar ya ❤️");
-        await sheets.spreadsheets.values.update({
-          spreadsheetId: SHEET_ID,
-          range: "Orders!R" + (i + 1),
-          valueInputOption: "RAW",
-          resource: { values: [["Yes"]] }
-        });
+        await sheets.spreadsheets.values.update({ spreadsheetId: SHEET_ID, range: "Orders!R" + (i + 1),
+          valueInputOption: "RAW", resource: { values: [["Yes"]] } });
         console.log("Notif Packed dihantar ke: " + noTel);
       }
-
-      // Notif Shipped
       if (status === "Shipped" && notifiedShipped !== "Yes" && trackingNo) {
         var courierUrl = "";
         if (courier.toLowerCase().includes("j&t")) courierUrl = "www.jtexpress.my";
         else if (courier.toLowerCase().includes("poslaju")) courierUrl = "www.poslaju.com.my";
         else if (courier.toLowerCase().includes("ninja")) courierUrl = "www.ninjavan.co/ms-my";
         else if (courier.toLowerCase().includes("gdex")) courierUrl = "www.gdexpress.com";
-
-        var notifShipped = "Assalamualaikum Cik! 😊\n\n" +
-          "Order Cik telah dihantar!\n" +
-          "Courier: " + courier + "\n" +
-          "No Tracking: " + trackingNo + "\n\n" +
-          (courierUrl ? "Track di: " + courierUrl + "\n" : "") +
+        var notifShipped = "Assalamualaikum Cik! 😊\n\nOrder Cik telah dihantar!\nCourier: " + courier +
+          "\nNo Tracking: " + trackingNo + "\n\n" + (courierUrl ? "Track di: " + courierUrl + "\n" : "") +
           "Anggaran tiba: 3-5 hari bekerja ❤️";
-
         await hantarMesej(noTel, notifShipped);
-        await sheets.spreadsheets.values.update({
-          spreadsheetId: SHEET_ID,
-          range: "Orders!S" + (i + 1),
-          valueInputOption: "RAW",
-          resource: { values: [["Yes"]] }
-        });
+        await sheets.spreadsheets.values.update({ spreadsheetId: SHEET_ID, range: "Orders!S" + (i + 1),
+          valueInputOption: "RAW", resource: { values: [["Yes"]] } });
         console.log("Notif Shipped dihantar ke: " + noTel);
       }
     }
-  } catch (err) {
-    console.error("Error check order status:", err);
-  }
+  } catch (err) { console.error("Error check order status:", err); }
 }, 2 * 60 * 1000);
 
-// ===== GOOGLE SHEET =====
 async function getSheetData(sheetName) {
   try {
     var url = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(sheetName);
@@ -410,29 +296,22 @@ async function getSheetData(sheetName) {
       if (!lines[i].trim()) continue;
       var values = lines[i].split(",").map(function(v) { return v.replace(/"/g, "").trim(); });
       var row = {};
-      for (var j = 0; j < headers.length; j++) {
-        row[headers[j]] = values[j] || "";
-      }
+      for (var j = 0; j < headers.length; j++) { row[headers[j]] = values[j] || ""; }
       if (sheetName === "Sheet1" && !row.Nama) continue;
       rows.push(row);
     }
     return rows;
-  } catch (err) {
-    console.error("Sheet error:", err);
-    return [];
-  }
+  } catch (err) { console.error("Sheet error:", err); return []; }
 }
 
-// ===== SYSTEM PROMPT =====
-function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks) {
+function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamOrderFlow) {
   var senaraiProduk = products.map(function(p) {
     if (!p || !p.Nama) return "";
     return p.Nama + " | Warna: " + p.Warna +
       " | Harga XS-2XL: RM" + p.Harga_XS_2XL +
       " | Harga 3XL-4XL: RM" + p.Harga_3XL_4XL + " (ADD ON RM10)" +
-      " | Stok: XS=" + p.Stock_XS + " S=" + p.Stock_S +
-      " M=" + p.Stock_M + " L=" + p.Stock_L +
-      " XL=" + p.Stock_XL + " 2XL=" + p.Stock_2XL +
+      " | Stok: XS=" + p.Stock_XS + " S=" + p.Stock_S + " M=" + p.Stock_M +
+      " L=" + p.Stock_L + " XL=" + p.Stock_XL + " 2XL=" + p.Stock_2XL +
       " 3XL=" + p.Stock_3XL + " 4XL=" + p.Stock_4XL;
   }).filter(Boolean).join("\n");
 
@@ -440,11 +319,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks) {
   sizeChart.forEach(function(row) {
     if (!row.Ukuran) return;
     if (!sizeInfo[row.Ukuran]) sizeInfo[row.Ukuran] = {};
-    ["XS","S","M","L","XL","2XL","3XL","4XL"].forEach(function(s) {
-      sizeInfo[row.Ukuran][s] = row[s] || "";
-    });
+    ["XS","S","M","L","XL","2XL","3XL","4XL"].forEach(function(s) { sizeInfo[row.Ukuran][s] = row[s] || ""; });
   });
-
   var sizeText = "Panduan Saiz:\n";
   Object.keys(sizeInfo).forEach(function(ukuran) {
     sizeText += ukuran + ": " + ["XS","S","M","L","XL","2XL","3XL","4XL"].map(function(s) {
@@ -455,18 +331,23 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks) {
   var detailText = "Detail Produk:\n";
   produkDetail.forEach(function(p) {
     if (!p || !p.Nama) return;
-    detailText += p.Nama +
-      " | Material: " + p.Material +
-      " | Cutting: " + p.Cutting +
-      " | Feature: " + p.Feature +
-      " | Sesuai untuk: " + p.Sesuai_Untuk + "\n";
+    detailText += p.Nama + " | Material: " + p.Material + " | Cutting: " + p.Cutting +
+      " | Feature: " + p.Feature + " | Sesuai untuk: " + p.Sesuai_Untuk + "\n";
   });
 
-  // ===== INJECT KONTEKS BAJU =====
   var konteksText = "";
   if (bajuKonteks) {
-    konteksText = "\nKONTEKS PENTING: Buyer ini datang untuk bertanya tentang " + bajuKonteks + 
-      ". Fokuskan jawapan pada baju ini sahaja melainkan buyer tanya tentang baju lain.\n";
+    konteksText = "\nKONTEKS PENTING: Buyer ini sedang bertanya tentang " + bajuKonteks + 
+      ". Fokuskan jawapan pada baju ini sahaja melainkan buyer secara explicit minta tengok baju lain.\n";
+  }
+
+  // ===== FIX: Tambah arahan bila dalam order flow =====
+  var orderFlowText = "";
+  if (dalamOrderFlow) {
+    orderFlowText = "\nSTATUS ORDER: Buyer sudah memilih baju dan sedang dalam proses order/tanya details." +
+      " JANGAN cadang atau propose baju lain." +
+      " Bila buyer tanya tentang material, kain, atau ciri-ciri baju — jawab info baju yang dipilih sahaja." +
+      " Hanya propose baju lain kalau buyer kata secara explicit nak tukar baju atau tak jadi beli.\n";
   }
 
   return "Kamu adalah pembantu jualan kedai baju ADEL Adyana Elegance. Jawab dalam Bahasa Malaysia Baku yang ringkas, mesra dan profesional.\n" +
@@ -475,6 +356,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks) {
     "Guna perkataan Malaysia: 'disahkan' bukan 'dikonfirmasi', 'sesuai' bukan 'cocok', 'baik' bukan 'oke'.\n" +
     "GAYA: Ayat pendek, mudah faham, profesional. Maksimum 3-4 ayat per jawapan.\n\n" +
     konteksText +
+    orderFlowText +
     "PRODUK:\n" + senaraiProduk + "\n\n" +
     "PANDUAN SAIZ:\n" + sizeText + "\n\n" +
     "DETAIL PRODUK:\n" + detailText + "\n\n" +
@@ -525,16 +407,11 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks) {
     "- JANGAN tambah ayat perpisahan panjang — maksimum 1 ayat ringkas sahaja";
 }
 
-// ===== HEALTH CHECK =====
-app.get("/", function(req, res) {
-  res.send("Bot ADEL Adyana OK");
-});
+app.get("/", function(req, res) { res.send("Bot ADEL Adyana OK"); });
 
-// ===== WEBHOOK =====
 app.post("/webhook", async function(req, res) {
   try {
     var data = req.body;
-
     if (data.event !== "message:in:new") return res.sendStatus(200);
     if (data.data.fromMe) return res.sendStatus(200);
 
@@ -549,13 +426,11 @@ app.post("/webhook", async function(req, res) {
 
     if (!phoneNumber) return res.sendStatus(200);
 
-    // Voice message
     if (!text && isVoice) {
       await hantarMesej(phoneNumber, "Maaf Cik, saya tidak dapat dengar voice note. Boleh Cik taip mesej anda? 😊");
       return res.sendStatus(200);
     }
 
-    // Media — resit kalau stage ordered
     if (!text && hasMedia) {
       if (followUpQueue[phoneNumber] && followUpQueue[phoneNumber].stage === "ordered") {
         followUpQueue[phoneNumber].stage = "paid";
@@ -569,10 +444,7 @@ app.post("/webhook", async function(req, res) {
 
     if (!from || !text) return res.sendStatus(200);
 
-    // ===== STOP LIST =====
     if (!global.stopList) global.stopList = {};
-
-    // Admin commands — dari nombor admin sahaja
     if (phoneNumber === "601123726341") {
       if (text.startsWith("/stop ")) {
         var stopNum = text.replace("/stop ", "").trim();
@@ -587,14 +459,8 @@ app.post("/webhook", async function(req, res) {
         return res.sendStatus(200);
       }
     }
+    if (global.stopList[phoneNumber]) { console.log("Bot distop untuk: " + phoneNumber); return res.sendStatus(200); }
 
-    // Check stop list
-    if (global.stopList[phoneNumber]) {
-      console.log("Bot distop untuk: " + phoneNumber);
-      return res.sendStatus(200);
-    }
-
-    // Reset command
     if (text.trim() === "/reset") {
       sesi[phoneNumber] = [];
       await simpanSesi(phoneNumber, []);
@@ -608,24 +474,20 @@ app.post("/webhook", async function(req, res) {
       return res.sendStatus(200);
     }
 
-    // Prompt injection
     if (detectPromptInjection(text)) {
       await hantarMesej(phoneNumber, "Maaf Cik, saya hanya boleh membantu berkaitan produk ADEL Adyana Elegance. 😊");
       await hantarMesej("601123726341", "PROMPT INJECTION!\nNo: " + phoneNumber + "\nMesej: " + text);
       return res.sendStatus(200);
     }
 
-    // Detect penukaran
-    var katatukar = ["nak tukar", "nk tukar", "tukar alamat", "tukar baju",
-      "tukar saiz", "tukar size", "tukar warna", "ubah alamat", "ubah baju",
-      "ubah saiz", "ubah size", "ubah warna", "salah alamat", "salah saiz",
-      "salah size", "salah baju", "salah warna", "boleh tukar", "boleh ubah",
-      "cancel", "batalkan"];
+    var katatukar = ["nak tukar", "nk tukar", "tukar alamat", "tukar baju", "tukar saiz", "tukar size",
+      "tukar warna", "ubah alamat", "ubah baju", "ubah saiz", "ubah size", "ubah warna",
+      "salah alamat", "salah saiz", "salah size", "salah baju", "salah warna",
+      "boleh tukar", "boleh ubah", "cancel", "batalkan"];
     if (katatukar.some(function(k) { return text.toLowerCase().includes(k); })) {
       await hantarMesej("601123726341", "PERHATIAN - REQUEST PENUKARAN!\n\nNo Tel: " + phoneNumber + "\nMesej: " + text + "\n\nSila semak segera!");
     }
 
-    // Setup follow up queue
     if (!followUpQueue[phoneNumber]) {
       followUpQueue[phoneNumber] = {
         stage: "browsing", lastReply: Date.now(),
@@ -642,13 +504,9 @@ app.post("/webhook", async function(req, res) {
       }
     }
 
-    // Load sesi
-    if (!sesi[phoneNumber]) {
-      sesi[phoneNumber] = await loadSesi(phoneNumber);
-    }
+    if (!sesi[phoneNumber]) { sesi[phoneNumber] = await loadSesi(phoneNumber); }
     sesi[phoneNumber].push({ role: "user", content: text });
 
-    // Load data
     var products = await getSheetDataCached("Sheet1");
     var sizeChart = await getSheetDataCached("Size Chart");
     var produkDetail = await getSheetDataCached("produkDetail");
@@ -657,12 +515,17 @@ app.post("/webhook", async function(req, res) {
     var textLower = text.toLowerCase();
     var history = sesi[phoneNumber].map(function(m) { return m.content; }).join(" ");
 
-    // ===== INJECT KONTEKS BAJU =====
-    // Detect baju dari history untuk inject konteks ke system prompt
     var bajuKonteks = getBajuTerakhir(history, products);
-    var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks);
 
-    // Detect janji
+    // ===== FIX: Detect sama ada buyer dalam order flow =====
+    var historyLower = history.toLowerCase();
+    var dalamOrderFlow = historyLower.includes("postage") || historyLower.includes("total") ||
+      historyLower.includes("bank transfer") || historyLower.includes("cod") ||
+      historyLower.includes("nak beli") || historyLower.includes("order") ||
+      historyLower.includes("saiz ") || historyLower.includes("warna ") && historyLower.includes("saiz");
+
+    var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamOrderFlow);
+
     var kataJanji = ["kejap", "sat", "jap", "sekejap", "nanti", "later",
       "dengan anak", "dengan suami", "dengan isteri", "dengan husband",
       "dengan wife", "dengan family", "dengan mak", "dengan ayah",
@@ -670,11 +533,8 @@ app.post("/webhook", async function(req, res) {
       "mlm", "mlm nanti", "malam nanti", "petang nanti", "esok pagi",
       "kejap lagi", "sekejap lagi", "nanti ye", "nanti saya"];
     if (kataJanji.some(function(k) { return text.toLowerCase().includes(k); })) {
-      var historyLowerJanji = history.toLowerCase();
-      var adaCODHistory = historyLowerJanji.includes("cod") ||
-                          historyLowerJanji.includes("cash on delivery") ||
-                          historyLowerJanji.includes("order_cod");
-
+      var adaCODHistory = historyLower.includes("cod") ||
+        historyLower.includes("cash on delivery") || historyLower.includes("order_cod");
       if (followUpQueue[phoneNumber].stage === "browsing" && adaCODHistory) {
         followUpQueue[phoneNumber].stage = "ordered";
         followUpQueue[phoneNumber].orderedAt = Date.now();
@@ -702,12 +562,10 @@ app.post("/webhook", async function(req, res) {
         var idx = history.toLowerCase().lastIndexOf(s.Nama.toLowerCase());
         if (idx > lastIdxSC) { lastIdxSC = idx; bajuSC = s; }
       });
-
       var scJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
       scJawapan = sanitizeJawapan(scJawapan);
       sesi[phoneNumber].push({ role: "assistant", content: scJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
-
       if (bajuSC && bajuSC.Gambar_URL) {
         await hantarGambar(phoneNumber, "Size chart " + bajuSC.Nama + " untuk Cik 😊", bajuSC.Gambar_URL);
       } else {
@@ -723,13 +581,10 @@ app.post("/webhook", async function(req, res) {
     }
 
     // ===== 2. DETECT SEMUA KATALOG =====
-    // NOTA: keyword dibersihkan — buang yang terlalu broad seperti "warna baju", "bagi warna" dll
     var kataKatalog = [
-      "tengok gambar semua", "tunjuk semua design",
-      "boleh tunjuk koleksi", "tengok koleksi",
-      "nak tengok semua koleksi", "semua design", "semua baju",
-      "koleksi baju", "gambar koleksi", "semua koleksi",
-      "tunjuk koleksi", "gambar semua koleksi", "tengok koleksi semua"
+      "tengok gambar semua", "tunjuk semua design", "boleh tunjuk koleksi", "tengok koleksi",
+      "nak tengok semua koleksi", "semua design", "semua baju", "koleksi baju",
+      "gambar koleksi", "semua koleksi", "tunjuk koleksi", "gambar semua koleksi", "tengok koleksi semua"
     ];
     if (kataKatalog.some(function(k) { return textLower.includes(k); })) {
       var bajuHistoryK = getBajuTerakhir(history, products);
@@ -737,14 +592,10 @@ app.post("/webhook", async function(req, res) {
       katJawapan = sanitizeJawapan(katJawapan);
       sesi[phoneNumber].push({ role: "assistant", content: katJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
-
       if (bajuHistoryK) {
-        // Ada baju dalam history — hantar gambar katalog baju tu sahaja
         var katalogBajuK = katalog.find(function(k) {
-          return k && k.Nama && (
-            k.Nama.toLowerCase().includes(bajuHistoryK.toLowerCase()) ||
-            bajuHistoryK.toLowerCase().includes(k.Nama.toLowerCase())
-          );
+          return k && k.Nama && (k.Nama.toLowerCase().includes(bajuHistoryK.toLowerCase()) ||
+            bajuHistoryK.toLowerCase().includes(k.Nama.toLowerCase()));
         });
         if (katalogBajuK && katalogBajuK.Gambar_URL) {
           await hantarGambar(phoneNumber, katJawapan, katalogBajuK.Gambar_URL);
@@ -752,7 +603,6 @@ app.post("/webhook", async function(req, res) {
           await hantarMesej(phoneNumber, katJawapan);
         }
       } else {
-        // Tiada baju dalam history — hantar semua katalog
         for (var kat = 0; kat < katalog.length; kat++) {
           if (katalog[kat] && katalog[kat].Gambar_URL) {
             await hantarGambar(phoneNumber, katalog[kat].Nama, katalog[kat].Gambar_URL);
@@ -773,13 +623,11 @@ app.post("/webhook", async function(req, res) {
         if (!bajuFound) { bajuFound = p.Nama; warnaFound = p.Warna; }
       }
     });
-
     if (bajuFound && warnaFound) {
       var produkSpesifik = products.find(function(p) {
         return p && p.Nama && p.Warna &&
           p.Nama.toLowerCase() === bajuFound.toLowerCase() &&
-          p.Warna.toLowerCase() === warnaFound.toLowerCase() &&
-          p.Gambar_URL;
+          p.Warna.toLowerCase() === warnaFound.toLowerCase() && p.Gambar_URL;
       });
       var psJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 300);
       psJawapan = sanitizeJawapan(psJawapan);
@@ -803,21 +651,17 @@ app.post("/webhook", async function(req, res) {
     uniqueNamaAll.forEach(function(nama) {
       if (textLower.includes(nama.toLowerCase())) bajuDisebut = nama;
     });
-
     if (bajuDisebut && (textLower.includes("warna") || textLower.includes("color") ||
         textLower.includes("ada") || textLower.includes("contoh") || textLower.includes("gambar"))) {
       var warnaAvailable = products
         .filter(function(p) { return p && p.Nama && p.Nama.toLowerCase() === bajuDisebut.toLowerCase(); })
         .map(function(p) { return p.Warna; });
-
       var extraInfo = "Warna yang ada untuk " + bajuDisebut + ": " + warnaAvailable.join(", ") + ".";
       var twJawapan = await callClaude(systemPrompt + "\n\nMAKLUMAT: " + extraInfo, sesi[phoneNumber], 300);
       twJawapan = sanitizeJawapan(twJawapan);
       sesi[phoneNumber].push({ role: "assistant", content: twJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
       await hantarMesej(phoneNumber, twJawapan);
-
-      // Hantar gambar katalog baju tu
       var katalogBaju = katalog.find(function(k) {
         return k && k.Nama && (k.Nama.toLowerCase().includes(bajuDisebut.toLowerCase()) ||
           bajuDisebut.toLowerCase().includes(k.Nama.toLowerCase()));
@@ -833,20 +677,25 @@ app.post("/webhook", async function(req, res) {
     var jawapan = await callClaude(systemPrompt, sesi[phoneNumber], 500);
     jawapan = sanitizeJawapan(jawapan);
 
-    // ===== FLAG GAMBAR SUDAH HANTAR =====
     var gambarSudahHantar = false;
 
     // ===== DETECT CLAUDE NAK HANTAR GAMBAR =====
-    // Expanded keywords + detect Claude propose baju+warna dalam jawapan
     var claudeNakHantarGambar = [
-      "hantar gambar", "hantar katalog", "saya hantar",
-      "saya boleh hantar", "gambar warna", "ini gambar",
-      "tunjukkan gambar", "saya tunjukkan", "tengok dulu",
-      "tunjuk gambar", "ini koleksi", "gambar untuk cik",
+      "hantar gambar", "hantar katalog", "saya hantar", "saya boleh hantar",
+      "gambar warna", "ini gambar", "tunjukkan gambar", "saya tunjukkan",
+      "tengok dulu", "tunjuk gambar", "ini koleksi", "gambar untuk cik",
       "gambar ni", "ini dia gambar"
     ].some(function(k) { return jawapan.toLowerCase().includes(k); });
 
-    // Detect Claude propose baju+warna specific dalam jawapan (tanpa keyword buyer)
+    // ===== FIX: Detect SEMUA baju yang disebut dalam jawapan Claude =====
+    var bajuDisebutDalamJawapan = [];
+    uniqueNamaAll.forEach(function(nama) {
+      if (jawapan.toLowerCase().includes(nama.toLowerCase())) {
+        bajuDisebutDalamJawapan.push(nama);
+      }
+    });
+
+    // Detect baju+warna specific (untuk 1 baju)
     var bajuWarnaPropose = null;
     var bajuTerakhirC = getBajuTerakhir(history, products);
     products.forEach(function(p) {
@@ -857,15 +706,31 @@ app.post("/webhook", async function(req, res) {
       }
     });
 
-    if ((claudeNakHantarGambar || bajuWarnaPropose) && !gambarSudahHantar) {
-      var gambarUrl = null;
+    if ((claudeNakHantarGambar || bajuWarnaPropose || bajuDisebutDalamJawapan.length > 0) && !gambarSudahHantar) {
 
-      // Priority 1: Gambar warna specific yang Claude propose
+      // Kalau Claude propose BEBERAPA baju — hantar gambar katalog semua baju tu
+      if (bajuDisebutDalamJawapan.length > 1) {
+        await hantarMesej(phoneNumber, jawapan);
+        for (var bi = 0; bi < bajuDisebutDalamJawapan.length; bi++) {
+          var katalogItem = katalog.find(function(k) {
+            return k && k.Nama && k.Nama.toLowerCase().includes(bajuDisebutDalamJawapan[bi].toLowerCase());
+          });
+          if (katalogItem && katalogItem.Gambar_URL) {
+            await new Promise(function(r) { setTimeout(r, 1000); });
+            await hantarGambar(phoneNumber, katalogItem.Nama, katalogItem.Gambar_URL);
+          }
+        }
+        gambarSudahHantar = true;
+        sesi[phoneNumber].push({ role: "assistant", content: jawapan });
+        await simpanSesi(phoneNumber, sesi[phoneNumber]);
+        return res.sendStatus(200);
+      }
+
+      // Kalau 1 baju — hantar gambar warna specific atau katalog
+      var gambarUrl = null;
       if (bajuWarnaPropose && bajuWarnaPropose.Gambar_URL) {
         gambarUrl = bajuWarnaPropose.Gambar_URL;
       }
-
-      // Priority 2: Gambar warna specific dari baju terakhir dalam history
       if (!gambarUrl && bajuTerakhirC) {
         products.forEach(function(p) {
           if (!p || !p.Nama || !p.Warna || !p.Gambar_URL) return;
@@ -875,17 +740,12 @@ app.post("/webhook", async function(req, res) {
           }
         });
       }
-
-      // Priority 3: Gambar katalog baju terakhir
       if (!gambarUrl && bajuTerakhirC) {
         var katalogBajuC = katalog.find(function(k) {
           return k && k.Nama && k.Nama.toLowerCase().includes(bajuTerakhirC.toLowerCase());
         });
-        if (katalogBajuC && katalogBajuC.Gambar_URL) {
-          gambarUrl = katalogBajuC.Gambar_URL;
-        }
+        if (katalogBajuC && katalogBajuC.Gambar_URL) gambarUrl = katalogBajuC.Gambar_URL;
       }
-
       if (gambarUrl) {
         await hantarGambar(phoneNumber, jawapan, gambarUrl);
         gambarSudahHantar = true;
@@ -897,30 +757,26 @@ app.post("/webhook", async function(req, res) {
 
     // ===== AUTO HANTAR GAMBAR KATALOG UNTUK FIRST CONTACT =====
     if (!gambarSudahHantar) {
-      var bajuDalamJawapan = null;
+      var bajuDalamJawapanFC = null;
       var uniqueNamaAllJ = [];
       products.forEach(function(p) {
         if (!p || !p.Nama) return;
         if (uniqueNamaAllJ.indexOf(p.Nama) === -1) uniqueNamaAllJ.push(p.Nama);
       });
       uniqueNamaAllJ.forEach(function(nama) {
-        if (jawapan.toLowerCase().includes(nama.toLowerCase())) {
-          bajuDalamJawapan = nama;
-        }
+        if (jawapan.toLowerCase().includes(nama.toLowerCase())) bajuDalamJawapanFC = nama;
       });
-
       var isFirstContact = sesi[phoneNumber].length <= 3;
-
-      if (bajuDalamJawapan && isFirstContact) {
+      if (bajuDalamJawapanFC && isFirstContact) {
         var katalogBajuAuto = katalog.find(function(k) {
-          return k && k.Nama && k.Nama.toLowerCase().includes(bajuDalamJawapan.toLowerCase());
+          return k && k.Nama && k.Nama.toLowerCase().includes(bajuDalamJawapanFC.toLowerCase());
         });
         if (katalogBajuAuto && katalogBajuAuto.Gambar_URL) {
           sesi[phoneNumber].push({ role: "assistant", content: jawapan });
           await simpanSesi(phoneNumber, sesi[phoneNumber]);
           await hantarMesej(phoneNumber, jawapan);
           await new Promise(function(r) { setTimeout(r, 1000); });
-          await hantarGambar(phoneNumber, "Ini koleksi " + bajuDalamJawapan + " kami Cik 😊", katalogBajuAuto.Gambar_URL);
+          await hantarGambar(phoneNumber, "Ini koleksi " + bajuDalamJawapanFC + " kami Cik 😊", katalogBajuAuto.Gambar_URL);
           gambarSudahHantar = true;
           return res.sendStatus(200);
         }
@@ -933,17 +789,13 @@ app.post("/webhook", async function(req, res) {
         "berat badan", "ukuran dada", "recommend saiz",
         "saiz yang sesuai", "perlukan maklumat", "boleh beritahu berat"
       ].some(function(k) { return jawapan.toLowerCase().includes(k); });
-
       if (claudeTanyaSaiz) {
         var bajuTerakhirSC = getBajuTerakhir(history + " " + jawapan, products);
         var scImage = sizeChartImages.find(function(s) {
-          return s && s.Nama && bajuTerakhirSC &&
-            s.Nama.toLowerCase().includes(bajuTerakhirSC.toLowerCase());
+          return s && s.Nama && bajuTerakhirSC && s.Nama.toLowerCase().includes(bajuTerakhirSC.toLowerCase());
         });
-
         sesi[phoneNumber].push({ role: "assistant", content: jawapan });
         await simpanSesi(phoneNumber, sesi[phoneNumber]);
-
         if (scImage && scImage.Gambar_URL) {
           await hantarGambar(phoneNumber, "Ini size chart untuk rujukan Cik 😊", scImage.Gambar_URL);
           await new Promise(function(r) { setTimeout(r, 1000); });
@@ -953,7 +805,6 @@ app.post("/webhook", async function(req, res) {
       }
     }
 
-    // Detect COD
     if (jawapan.includes("ORDER_COD_CONFIRMED")) {
       followUpQueue[phoneNumber].stage = "ordered";
       followUpQueue[phoneNumber].orderedAt = Date.now();
@@ -962,27 +813,20 @@ app.post("/webhook", async function(req, res) {
       followUpQueue[phoneNumber].done = false;
       jawapan = jawapan.replace("ORDER_COD_CONFIRMED", "").trim();
     }
-
-    // Detect resit
     if (jawapan.includes("ORDER_RECEIPT_RECEIVED")) {
       followUpQueue[phoneNumber].stage = "paid";
       followUpQueue[phoneNumber].done = true;
       jawapan = jawapan.replace("ORDER_RECEIPT_RECEIVED", "").trim();
     }
-
-    // Detect order confirmed
     console.log("Jawapan Claude:", jawapan);
     if (jawapan.includes("ORDER_CONFIRMED:")) {
       var orderData = jawapan.split("ORDER_CONFIRMED:")[1].split("|");
       await simpanOrder({
-        nama: orderData[0] || "", noTel: orderData[1] || "",
-        alamat: orderData[2] || "", poskod: orderData[3] || "",
-        bandar: orderData[4] || "", negeri: orderData[5] || "",
-        produk: orderData[6] || "", saiz: orderData[7] || "",
-        warna: orderData[8] || "", harga: orderData[9] || "",
-        postage: orderData[10] || "", total: orderData[11] || "",
-        kaedahBayar: orderData[12] || "", penamaakaun: orderData[13] || "",
-        nota: orderData[14] || ""
+        nama: orderData[0]||"", noTel: orderData[1]||"", alamat: orderData[2]||"",
+        poskod: orderData[3]||"", bandar: orderData[4]||"", negeri: orderData[5]||"",
+        produk: orderData[6]||"", saiz: orderData[7]||"", warna: orderData[8]||"",
+        harga: orderData[9]||"", postage: orderData[10]||"", total: orderData[11]||"",
+        kaedahBayar: orderData[12]||"", penamaakaun: orderData[13]||"", nota: orderData[14]||""
       });
       jawapan = jawapan.split("ORDER_CONFIRMED:")[0].trim();
       if (!jawapan) jawapan = "Terima kasih Cik! Order Cik telah berjaya disahkan. Kami akan proses segera 😊";
@@ -997,13 +841,8 @@ app.post("/webhook", async function(req, res) {
     await hantarMesej(phoneNumber, jawapan);
 
     res.sendStatus(200);
-  } catch (err) {
-    console.error(err);
-    res.sendStatus(200);
-  }
+  } catch (err) { console.error(err); res.sendStatus(200); }
 });
 
 var PORT = process.env.PORT || 8080;
-app.listen(PORT, function() {
-  console.log("Server running on port " + PORT);
-});
+app.listen(PORT, function() { console.log("Server running on port " + PORT); });
