@@ -234,6 +234,23 @@ function getBajuTerakhir(history, products) {
   return bajuTerakhir;
 }
 
+// ===== SANITIZE JAWAPAN =====
+function sanitizeJawapan(text) {
+  // Buang markdown image: ![text](url)
+  text = text.replace(/!\[.?\]\(.?\)/g, "");
+  // Buang markdown link: [text](url)
+  text = text.replace(/\[.?\]\(.?\)/g, "");
+  // Buang URL bare
+  text = text.replace(/https?:\/\/\S+/g, "");
+  // Buang bold markdown: *text*
+  text = text.replace(/\\(.?)\\*/g, "$1");
+  // Buang italic markdown: text
+  text = text.replace(/\(.?)\*/g, "$1");
+  // Buang baris kosong berganda
+  text = text.replace(/\n{3,}/g, "\n\n");
+  return text.trim();
+}
+
 // ===== CLAUDE API CALL =====
 async function callClaude(systemPrompt, messages, maxTokens) {
   var cuba = 0;
@@ -489,6 +506,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks) {
     "- JANGAN sebut 'sistem akan hantar', 'tunggu sebentar', 'saya hantar sekarang'\n" +
     "- Terus jawab natural sahaja, gambar akan keluar automatik\n" +
     "- LARANGAN MUTLAK: JANGAN tulis URL, link, markdown, bold dalam jawapan\n" +
+    "- JANGAN sekali-kali tulis format ![...](url) atau [text](url)\n" +
+    "- JANGAN senaraikan link gambar — gambar dihantar automatik oleh sistem\n" +
     "- Flow order:\n" +
     "  1. Confirm beli → tanya lokasi (Semenanjung/Sabah/Sarawak)\n" +
     "  2. Kira postage → beritahu total\n" +
@@ -683,6 +702,7 @@ app.post("/webhook", async function(req, res) {
       });
 
       var scJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
+      scJawapan = sanitizeJawapan(scJawapan);
       sesi[phoneNumber].push({ role: "assistant", content: scJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
 
@@ -712,6 +732,7 @@ app.post("/webhook", async function(req, res) {
     if (kataKatalog.some(function(k) { return textLower.includes(k); })) {
       var bajuHistoryK = getBajuTerakhir(history, products);
       var katJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
+      katJawapan = sanitizeJawapan(katJawapan);
       sesi[phoneNumber].push({ role: "assistant", content: katJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
 
@@ -759,6 +780,7 @@ app.post("/webhook", async function(req, res) {
           p.Gambar_URL;
       });
       var psJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 300);
+      psJawapan = sanitizeJawapan(psJawapan);
       sesi[phoneNumber].push({ role: "assistant", content: psJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
       if (produkSpesifik) {
@@ -788,6 +810,7 @@ app.post("/webhook", async function(req, res) {
 
       var extraInfo = "Warna yang ada untuk " + bajuDisebut + ": " + warnaAvailable.join(", ") + ".";
       var twJawapan = await callClaude(systemPrompt + "\n\nMAKLUMAT: " + extraInfo, sesi[phoneNumber], 300);
+      twJawapan = sanitizeJawapan(twJawapan);
       sesi[phoneNumber].push({ role: "assistant", content: twJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
       await hantarMesej(phoneNumber, twJawapan);
@@ -806,6 +829,7 @@ app.post("/webhook", async function(req, res) {
 
     // ===== 5. PROSES NORMAL =====
     var jawapan = await callClaude(systemPrompt, sesi[phoneNumber], 500);
+    jawapan = sanitizeJawapan(jawapan);
 
     // ===== FLAG GAMBAR SUDAH HANTAR =====
     var gambarSudahHantar = false;
