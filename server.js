@@ -718,6 +718,36 @@ app.post("/webhook", async function(req, res) {
      }
    }
 
+     // Auto hantar gambar katalog untuk first contact
+     var bajuDalamJawapan = null;
+     var uniqueNamaAllJ = [];
+     products.forEach(function(p) {
+       if (!p || !p.Nama) return;
+       if (uniqueNamaAllJ.indexOf(p.Nama) === -1) uniqueNamaAllJ.push(p.Nama);
+     });
+     uniqueNamaAllJ.forEach(function(nama) {
+       if (jawapan.toLowerCase().includes(nama.toLowerCase())) {
+         bajuDalamJawapan = nama;
+       }
+     });
+
+     var isFirstContact = sesi[phoneNumber].length <= 3;
+
+     if (bajuDalamJawapan && isFirstContact && !claudeNakHantarGambar) {
+       var katalogBajuAuto = katalog.find(function(k) {
+         return k && k.Nama &&
+           k.Nama.toLowerCase().includes(bajuDalamJawapan.toLowerCase());
+       });
+       if (katalogBajuAuto && katalogBajuAuto.Gambar_URL) {
+         sesi[phoneNumber].push({ role: "assistant", content: jawapan });
+         await simpanSesi(phoneNumber, sesi[phoneNumber]);
+         await hantarMesej(phoneNumber, jawapan);
+         await new Promise(function(r) { setTimeout(r, 1000); });
+         await hantarGambar(phoneNumber, "Ini koleksi " + bajuDalamJawapan + " kami Cik 😊", katalogBajuAuto.Gambar_URL);
+         return res.sendStatus(200);
+       }
+     }
+
     // Detect COD
     if (jawapan.includes("ORDER_COD_CONFIRMED")) {
       followUpQueue[phoneNumber].stage = "ordered";
