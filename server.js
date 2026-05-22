@@ -629,7 +629,7 @@ app.post("/webhook", async function(req, res) {
       "mlm", "mlm nanti", "malam nanti", "petang nanti", "esok pagi",
       "kejap lagi", "sekejap lagi", "nanti ye", "nanti saya"];
     if (kataJanji.some(function(k) { return text.toLowerCase().includes(k); })) {
-      var historyLowerJanji = history.toLowerCase();
+      var historyLowerJanji = (history || "").toLowerCase();
       var adaCODHistory = historyLowerJanji.includes("cod") || 
                           historyLowerJanji.includes("cash on delivery") ||
                           historyLowerJanji.includes("order_cod");
