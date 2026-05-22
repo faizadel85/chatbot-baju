@@ -172,7 +172,7 @@ function sanitizeJawapan(text) {
   text = text.replace(/\[.*?\]\(.*?\)/g, "");
   text = text.replace(/https?:\/\/\S+/g, "");
   text = text.replace(/\*\*(.*?)\*\*/g, "$1");
-  text = text.replace(/\*([^*]+)\*/g, "$1"); // italic
+  text = text.replace(/\*([^*]+)\*/g, "$1");
   text = text.replace(/\n{3,}/g, "\n\n");
   return text.trim();
 }
@@ -191,6 +191,77 @@ async function callClaude(systemPrompt, messages, maxTokens) {
       if (cuba === 3) throw err;
       await new Promise(function(r) { setTimeout(r, 2000); });
     }
+  }
+}
+
+// ===== CLAUDE DECIDE — Tanya Claude gambar apa nak dihantar =====
+async function claudeDecideGambar(jawapan, history, products, katalog, sizeChartImages) {
+  try {
+    // Senarai semua gambar yang ada
+    var senaraiGambar = [];
+
+    // Tambah katalog
+    katalog.forEach(function(k) {
+      if (k && k.Nama && k.Gambar_URL) {
+        senaraiGambar.push("KATALOG:" + k.Nama + "|" + k.Gambar_URL);
+      }
+    });
+
+    // Tambah gambar warna specific
+    products.forEach(function(p) {
+      if (p && p.Nama && p.Warna && p.Gambar_URL) {
+        senaraiGambar.push("WARNA:" + p.Nama + " " + p.Warna + "|" + p.Gambar_URL);
+      }
+    });
+
+    // Tambah size chart
+    sizeChartImages.forEach(function(s) {
+      if (s && s.Nama && s.Gambar_URL) {
+        senaraiGambar.push("SIZECHART:" + s.Nama + "|" + s.Gambar_URL);
+      }
+    });
+
+    var decisionPrompt = "Kamu adalah sistem yang memutuskan gambar mana perlu dihantar kepada buyer.\n\n" +
+      "Jawapan bot kepada buyer:\n" + jawapan + "\n\n" +
+      "History conversation:\n" + history.slice(-1000) + "\n\n" +
+      "Senarai gambar yang ada (format JENIS:NAMA|URL):\n" + senaraiGambar.join("\n") + "\n\n" +
+      "TUGASAN: Berdasarkan jawapan bot dan context conversation, tentukan gambar mana perlu dihantar.\n" +
+      "PERATURAN:\n" +
+      "- Kalau bot propose BEBERAPA baju → hantar KATALOG setiap baju yang disebut\n" +
+      "- Kalau bot tunjuk warna specific → hantar WARNA yang berkaitan\n" +
+      "- Kalau bot tanya saiz/ukuran → hantar SIZECHART baju berkaitan\n" +
+      "- Kalau bot sekadar jawab soalan biasa tanpa tunjuk produk → jawab TIADA\n" +
+      "- Kalau dalam order flow (tanya alamat, payment dll) → jawab TIADA\n\n" +
+      "Jawab HANYA dalam format ini (boleh lebih dari 1 baris kalau perlu beberapa gambar):\n" +
+      "HANTAR:URL_GAMBAR\n" +
+      "atau\n" +
+      "TIADA\n\n" +
+      "JANGAN tulis apa-apa lain selain format di atas.";
+
+    var decision = await callClaude(decisionPrompt,
+      [{ role: "user", content: "Tentukan gambar." }], 300);
+
+    decision = decision.trim();
+
+    if (decision === "TIADA" || !decision.includes("HANTAR:")) {
+      return [];
+    }
+
+    // Parse semua URL
+    var urls = [];
+    var lines = decision.split("\n");
+    lines.forEach(function(line) {
+      line = line.trim();
+      if (line.startsWith("HANTAR:")) {
+        var url = line.replace("HANTAR:", "").trim();
+        if (url) urls.push(url);
+      }
+    });
+
+    return urls;
+  } catch (err) {
+    console.error("Error claudeDecideGambar:", err.message);
+    return [];
   }
 }
 
@@ -337,17 +408,16 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
 
   var konteksText = "";
   if (bajuKonteks) {
-    konteksText = "\nKONTEKS PENTING: Buyer ini sedang bertanya tentang " + bajuKonteks + 
+    konteksText = "\nKONTEKS PENTING: Buyer ini sedang bertanya tentang " + bajuKonteks +
       ". Fokuskan jawapan pada baju ini sahaja melainkan buyer secara explicit minta tengok baju lain.\n";
   }
 
-  // ===== FIX: Tambah arahan bila dalam order flow =====
   var orderFlowText = "";
   if (dalamOrderFlow) {
-    orderFlowText = "\nSTATUS ORDER: Buyer sudah memilih baju dan sedang dalam proses order/tanya details." +
+    orderFlowText = "\nSTATUS ORDER: Buyer sudah memilih baju dan sedang dalam proses order." +
       " JANGAN cadang atau propose baju lain." +
-      " Bila buyer tanya tentang material, kain, atau ciri-ciri baju — jawab info baju yang dipilih sahaja." +
-      " Hanya propose baju lain kalau buyer kata secara explicit nak tukar baju atau tak jadi beli.\n";
+      " Bila buyer tanya tentang material atau ciri-ciri baju — jawab info baju yang dipilih sahaja." +
+      " Hanya propose baju lain kalau buyer kata nak tukar baju atau tak jadi beli.\n";
   }
 
   return "Kamu adalah pembantu jualan kedai baju ADEL Adyana Elegance. Jawab dalam Bahasa Malaysia Baku yang ringkas, mesra dan profesional.\n" +
@@ -516,13 +586,10 @@ app.post("/webhook", async function(req, res) {
     var history = sesi[phoneNumber].map(function(m) { return m.content; }).join(" ");
 
     var bajuKonteks = getBajuTerakhir(history, products);
-
-    // ===== FIX: Detect sama ada buyer dalam order flow =====
     var historyLower = history.toLowerCase();
     var dalamOrderFlow = historyLower.includes("postage") || historyLower.includes("total") ||
       historyLower.includes("bank transfer") || historyLower.includes("cod") ||
-      historyLower.includes("nak beli") || historyLower.includes("order") ||
-      historyLower.includes("saiz ") || historyLower.includes("warna ") && historyLower.includes("saiz");
+      historyLower.includes("nak beli") || historyLower.includes("order");
 
     var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamOrderFlow);
 
@@ -549,7 +616,7 @@ app.post("/webhook", async function(req, res) {
       }
     }
 
-    // ===== 1. DETECT SIZE CHART =====
+    // ===== SIZE CHART — kekal keyword detect sbb specific =====
     var kataSizeChart = ["size chart", "measurement", "carta saiz", "ukuran baju",
       "size guide", "saiz chart", "chart size", "measurement chart",
       "tgk chart", "nk tgk size", "nak tgk size", "chart", "sizing", "carta size",
@@ -580,7 +647,7 @@ app.post("/webhook", async function(req, res) {
       return res.sendStatus(200);
     }
 
-    // ===== 2. DETECT SEMUA KATALOG =====
+    // ===== SEMUA KATALOG — kekal keyword detect =====
     var kataKatalog = [
       "tengok gambar semua", "tunjuk semua design", "boleh tunjuk koleksi", "tengok koleksi",
       "nak tengok semua koleksi", "semua design", "semua baju", "koleksi baju",
@@ -614,197 +681,11 @@ app.post("/webhook", async function(req, res) {
       return res.sendStatus(200);
     }
 
-    // ===== 3. DETECT BAJU + WARNA SPECIFIC =====
-    var bajuFound = null;
-    var warnaFound = null;
-    products.forEach(function(p) {
-      if (!p || !p.Nama || !p.Warna) return;
-      if (textLower.includes(p.Nama.toLowerCase()) && textLower.includes(p.Warna.toLowerCase())) {
-        if (!bajuFound) { bajuFound = p.Nama; warnaFound = p.Warna; }
-      }
-    });
-    if (bajuFound && warnaFound) {
-      var produkSpesifik = products.find(function(p) {
-        return p && p.Nama && p.Warna &&
-          p.Nama.toLowerCase() === bajuFound.toLowerCase() &&
-          p.Warna.toLowerCase() === warnaFound.toLowerCase() && p.Gambar_URL;
-      });
-      var psJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 300);
-      psJawapan = sanitizeJawapan(psJawapan);
-      sesi[phoneNumber].push({ role: "assistant", content: psJawapan });
-      await simpanSesi(phoneNumber, sesi[phoneNumber]);
-      if (produkSpesifik) {
-        await hantarGambar(phoneNumber, psJawapan, produkSpesifik.Gambar_URL);
-      } else {
-        await hantarMesej(phoneNumber, psJawapan);
-      }
-      return res.sendStatus(200);
-    }
-
-    // ===== 4. DETECT BAJU + TANYA WARNA =====
-    var bajuDisebut = null;
-    var uniqueNamaAll = [];
-    products.forEach(function(p) {
-      if (!p || !p.Nama) return;
-      if (uniqueNamaAll.indexOf(p.Nama) === -1) uniqueNamaAll.push(p.Nama);
-    });
-    uniqueNamaAll.forEach(function(nama) {
-      if (textLower.includes(nama.toLowerCase())) bajuDisebut = nama;
-    });
-    if (bajuDisebut && (textLower.includes("warna") || textLower.includes("color") ||
-        textLower.includes("ada") || textLower.includes("contoh") || textLower.includes("gambar"))) {
-      var warnaAvailable = products
-        .filter(function(p) { return p && p.Nama && p.Nama.toLowerCase() === bajuDisebut.toLowerCase(); })
-        .map(function(p) { return p.Warna; });
-      var extraInfo = "Warna yang ada untuk " + bajuDisebut + ": " + warnaAvailable.join(", ") + ".";
-      var twJawapan = await callClaude(systemPrompt + "\n\nMAKLUMAT: " + extraInfo, sesi[phoneNumber], 300);
-      twJawapan = sanitizeJawapan(twJawapan);
-      sesi[phoneNumber].push({ role: "assistant", content: twJawapan });
-      await simpanSesi(phoneNumber, sesi[phoneNumber]);
-      await hantarMesej(phoneNumber, twJawapan);
-      var katalogBaju = katalog.find(function(k) {
-        return k && k.Nama && (k.Nama.toLowerCase().includes(bajuDisebut.toLowerCase()) ||
-          bajuDisebut.toLowerCase().includes(k.Nama.toLowerCase()));
-      });
-      if (katalogBaju && katalogBaju.Gambar_URL) {
-        await new Promise(function(r) { setTimeout(r, 1000); });
-        await hantarGambar(phoneNumber, katalogBaju.Nama, katalogBaju.Gambar_URL);
-      }
-      return res.sendStatus(200);
-    }
-
-    // ===== 5. PROSES NORMAL =====
+    // ===== PROSES NORMAL — Claude jawab dulu =====
     var jawapan = await callClaude(systemPrompt, sesi[phoneNumber], 500);
     jawapan = sanitizeJawapan(jawapan);
 
-    var gambarSudahHantar = false;
-
-    // ===== DETECT CLAUDE NAK HANTAR GAMBAR =====
-    var claudeNakHantarGambar = [
-      "hantar gambar", "hantar katalog", "saya hantar", "saya boleh hantar",
-      "gambar warna", "ini gambar", "tunjukkan gambar", "saya tunjukkan",
-      "tengok dulu", "tunjuk gambar", "ini koleksi", "gambar untuk cik",
-      "gambar ni", "ini dia gambar"
-    ].some(function(k) { return jawapan.toLowerCase().includes(k); });
-
-    // ===== FIX: Detect SEMUA baju yang disebut dalam jawapan Claude =====
-    var bajuDisebutDalamJawapan = [];
-    uniqueNamaAll.forEach(function(nama) {
-      if (jawapan.toLowerCase().includes(nama.toLowerCase())) {
-        bajuDisebutDalamJawapan.push(nama);
-      }
-    });
-
-    // Detect baju+warna specific (untuk 1 baju)
-    var bajuWarnaPropose = null;
-    var bajuTerakhirC = getBajuTerakhir(history, products);
-    products.forEach(function(p) {
-      if (!p || !p.Nama || !p.Warna || !p.Gambar_URL) return;
-      if (jawapan.toLowerCase().includes(p.Nama.toLowerCase()) &&
-          jawapan.toLowerCase().includes(p.Warna.toLowerCase())) {
-        if (!bajuWarnaPropose) bajuWarnaPropose = p;
-      }
-    });
-
-    if ((claudeNakHantarGambar || bajuWarnaPropose || bajuDisebutDalamJawapan.length > 0) && !gambarSudahHantar) {
-
-      // Kalau Claude propose BEBERAPA baju — hantar gambar katalog semua baju tu
-      if (bajuDisebutDalamJawapan.length > 1) {
-        await hantarMesej(phoneNumber, jawapan);
-        for (var bi = 0; bi < bajuDisebutDalamJawapan.length; bi++) {
-          var katalogItem = katalog.find(function(k) {
-            return k && k.Nama && k.Nama.toLowerCase().includes(bajuDisebutDalamJawapan[bi].toLowerCase());
-          });
-          if (katalogItem && katalogItem.Gambar_URL) {
-            await new Promise(function(r) { setTimeout(r, 1000); });
-            await hantarGambar(phoneNumber, katalogItem.Nama, katalogItem.Gambar_URL);
-          }
-        }
-        gambarSudahHantar = true;
-        sesi[phoneNumber].push({ role: "assistant", content: jawapan });
-        await simpanSesi(phoneNumber, sesi[phoneNumber]);
-        return res.sendStatus(200);
-      }
-
-      // Kalau 1 baju — hantar gambar warna specific atau katalog
-      var gambarUrl = null;
-      if (bajuWarnaPropose && bajuWarnaPropose.Gambar_URL) {
-        gambarUrl = bajuWarnaPropose.Gambar_URL;
-      }
-      if (!gambarUrl && bajuTerakhirC) {
-        products.forEach(function(p) {
-          if (!p || !p.Nama || !p.Warna || !p.Gambar_URL) return;
-          if (p.Nama.toLowerCase() === bajuTerakhirC.toLowerCase() &&
-              jawapan.toLowerCase().includes(p.Warna.toLowerCase())) {
-            if (!gambarUrl) gambarUrl = p.Gambar_URL;
-          }
-        });
-      }
-      if (!gambarUrl && bajuTerakhirC) {
-        var katalogBajuC = katalog.find(function(k) {
-          return k && k.Nama && k.Nama.toLowerCase().includes(bajuTerakhirC.toLowerCase());
-        });
-        if (katalogBajuC && katalogBajuC.Gambar_URL) gambarUrl = katalogBajuC.Gambar_URL;
-      }
-      if (gambarUrl) {
-        await hantarGambar(phoneNumber, jawapan, gambarUrl);
-        gambarSudahHantar = true;
-        sesi[phoneNumber].push({ role: "assistant", content: jawapan });
-        await simpanSesi(phoneNumber, sesi[phoneNumber]);
-        return res.sendStatus(200);
-      }
-    }
-
-    // ===== AUTO HANTAR GAMBAR KATALOG UNTUK FIRST CONTACT =====
-    if (!gambarSudahHantar) {
-      var bajuDalamJawapanFC = null;
-      var uniqueNamaAllJ = [];
-      products.forEach(function(p) {
-        if (!p || !p.Nama) return;
-        if (uniqueNamaAllJ.indexOf(p.Nama) === -1) uniqueNamaAllJ.push(p.Nama);
-      });
-      uniqueNamaAllJ.forEach(function(nama) {
-        if (jawapan.toLowerCase().includes(nama.toLowerCase())) bajuDalamJawapanFC = nama;
-      });
-      var isFirstContact = sesi[phoneNumber].length <= 3;
-      if (bajuDalamJawapanFC && isFirstContact) {
-        var katalogBajuAuto = katalog.find(function(k) {
-          return k && k.Nama && k.Nama.toLowerCase().includes(bajuDalamJawapanFC.toLowerCase());
-        });
-        if (katalogBajuAuto && katalogBajuAuto.Gambar_URL) {
-          sesi[phoneNumber].push({ role: "assistant", content: jawapan });
-          await simpanSesi(phoneNumber, sesi[phoneNumber]);
-          await hantarMesej(phoneNumber, jawapan);
-          await new Promise(function(r) { setTimeout(r, 1000); });
-          await hantarGambar(phoneNumber, "Ini koleksi " + bajuDalamJawapanFC + " kami Cik 😊", katalogBajuAuto.Gambar_URL);
-          gambarSudahHantar = true;
-          return res.sendStatus(200);
-        }
-      }
-    }
-
-    // ===== AUTO HANTAR SIZE CHART BILA CLAUDE TANYA SAIZ =====
-    if (!gambarSudahHantar) {
-      var claudeTanyaSaiz = [
-        "berat badan", "ukuran dada", "recommend saiz",
-        "saiz yang sesuai", "perlukan maklumat", "boleh beritahu berat"
-      ].some(function(k) { return jawapan.toLowerCase().includes(k); });
-      if (claudeTanyaSaiz) {
-        var bajuTerakhirSC = getBajuTerakhir(history + " " + jawapan, products);
-        var scImage = sizeChartImages.find(function(s) {
-          return s && s.Nama && bajuTerakhirSC && s.Nama.toLowerCase().includes(bajuTerakhirSC.toLowerCase());
-        });
-        sesi[phoneNumber].push({ role: "assistant", content: jawapan });
-        await simpanSesi(phoneNumber, sesi[phoneNumber]);
-        if (scImage && scImage.Gambar_URL) {
-          await hantarGambar(phoneNumber, "Ini size chart untuk rujukan Cik 😊", scImage.Gambar_URL);
-          await new Promise(function(r) { setTimeout(r, 1000); });
-        }
-        await hantarMesej(phoneNumber, jawapan);
-        return res.sendStatus(200);
-      }
-    }
-
+    // ===== DETECT ORDER TRIGGERS =====
     if (jawapan.includes("ORDER_COD_CONFIRMED")) {
       followUpQueue[phoneNumber].stage = "ordered";
       followUpQueue[phoneNumber].orderedAt = Date.now();
@@ -838,7 +719,21 @@ app.post("/webhook", async function(req, res) {
 
     sesi[phoneNumber].push({ role: "assistant", content: jawapan });
     await simpanSesi(phoneNumber, sesi[phoneNumber]);
-    await hantarMesej(phoneNumber, jawapan);
+
+    // ===== CLAUDE DECIDE — Tanya Claude gambar apa nak dihantar =====
+    var gambarUrls = await claudeDecideGambar(jawapan, history, products, katalog, sizeChartImages);
+
+    if (gambarUrls.length > 0) {
+      // Hantar teks jawapan dulu
+      await hantarMesej(phoneNumber, jawapan);
+      // Kemudian hantar semua gambar
+      for (var gi = 0; gi < gambarUrls.length; gi++) {
+        await new Promise(function(r) { setTimeout(r, 1000); });
+        await hantarGambar(phoneNumber, "😊", gambarUrls[gi]);
+      }
+    } else {
+      await hantarMesej(phoneNumber, jawapan);
+    }
 
     res.sendStatus(200);
   } catch (err) { console.error(err); res.sendStatus(200); }
