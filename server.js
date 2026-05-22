@@ -748,6 +748,30 @@ app.post("/webhook", async function(req, res) {
        }
      }
 
+      // Auto hantar size chart bila Claude tanya saiz
+      var claudeTanyaSaiz = [
+        "berat badan", "ukuran dada", "recommend saiz",
+        "saiz yang sesuai", "perlukan maklumat", "boleh beritahu berat"
+      ].some(function(k) { return jawapan.toLowerCase().includes(k); });
+
+      if (claudeTanyaSaiz) {
+        var bajuTerakhirSC = getBajuTerakhir(history + " " + jawapan, products);
+        var scImage = sizeChartImages.find(function(s) {
+          return s && s.Nama && bajuTerakhirSC &&
+            s.Nama.toLowerCase().includes(bajuTerakhirSC.toLowerCase());
+        });
+
+        sesi[phoneNumber].push({ role: "assistant", content: jawapan });
+        await simpanSesi(phoneNumber, sesi[phoneNumber]);
+
+        if (scImage && scImage.Gambar_URL) {
+          await hantarGambar(phoneNumber, "Ini size chart untuk rujukan Cik 😊", scImage.Gambar_URL);
+          await new Promise(function(r) { setTimeout(r, 1000); });
+        }
+        await hantarMesej(phoneNumber, jawapan);
+        return res.sendStatus(200);
+      }
+
     // Detect COD
     if (jawapan.includes("ORDER_COD_CONFIRMED")) {
       followUpQueue[phoneNumber].stage = "ordered";
