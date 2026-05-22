@@ -510,8 +510,6 @@ app.post("/webhook", async function(req, res) {
     } else {
       if (followUpQueue[phoneNumber].stage === "browsing") {
         followUpQueue[phoneNumber].lastReply = Date.now();
-        followUpQueue[phoneNumber].sent1 = false;
-        followUpQueue[phoneNumber].sent2 = false;
         followUpQueue[phoneNumber].done = false;
       } else if (followUpQueue[phoneNumber].stage === "ordered") {
         followUpQueue[phoneNumber].lastReply = Date.now();
@@ -600,7 +598,8 @@ app.post("/webhook", async function(req, res) {
       "boleh tunjuk koleksi", "tengok koleksi",
       "nak tengok semua koleksi", "semua design", "semua baju",
       "koleksi baju", "gambar koleksi", "semua koleksi",
-     "tunjuk koleksi", "gambar semua koleksi", "tengok koleksi semua"
+     "tunjuk koleksi", "gambar semua koleksi", "tengok koleksi semua", "wane", "warna baju", "sendkan", "sendkn",
+  "tgk warna", "bagi warna", "hantar warna"
     ];
     if (kataKatalog.some(function(k) { return textLower.includes(k); })) {
       var bajuHistoryK = getBajuTerakhir(history, products);
@@ -698,6 +697,26 @@ app.post("/webhook", async function(req, res) {
 
     // ===== 5. PROSES NORMAL =====
     var jawapan = await callClaude(systemPrompt, sesi[phoneNumber], 500);
+
+   // Detect kalau Claude sebut nak hantar gambar
+   var claudeNakHantarGambar = [
+     "hantar gambar", "hantar katalog", "saya hantar",
+     "saya boleh hantar", "gambar warna", "ini gambar"
+   ].some(function(k) { return jawapan.toLowerCase().includes(k); });
+
+   if (claudeNakHantarGambar) {
+     var bajuTerakhirC = getBajuTerakhir(history, products);
+     var katalogBajuC = katalog.find(function(k) {
+       return k && k.Nama && bajuTerakhirC &&
+         k.Nama.toLowerCase().includes(bajuTerakhirC.toLowerCase());
+     });
+     if (katalogBajuC && katalogBajuC.Gambar_URL) {
+       await hantarGambar(phoneNumber, jawapan, katalogBajuC.Gambar_URL);
+       sesi[phoneNumber].push({ role: "assistant", content: jawapan });
+       await simpanSesi(phoneNumber, sesi[phoneNumber]);
+       return res.sendStatus(200);
+     }
+   }
 
     // Detect COD
     if (jawapan.includes("ORDER_COD_CONFIRMED")) {
