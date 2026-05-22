@@ -237,15 +237,15 @@ function getBajuTerakhir(history, products) {
 // ===== SANITIZE JAWAPAN =====
 function sanitizeJawapan(text) {
   // Buang markdown image: ![text](url)
-  text = text.replace(/!\[.?\]\(.?\)/g, "");
+  text = text.replace(/!\[.*?\]\(.*?\)/g, "");
   // Buang markdown link: [text](url)
-  text = text.replace(/\[.?\]\(.?\)/g, "");
+  text = text.replace(/\[.*?\]\(.*?\)/g, "");
   // Buang URL bare
   text = text.replace(/https?:\/\/\S+/g, "");
-  // Buang bold markdown: *text*
-  text = text.replace(/\\(.?)\\*/g, "$1");
-  // Buang italic markdown: text
-  text = text.replace(/\(.?)\*/g, "$1");
+  // Buang bold markdown: **text**
+  text = text.replace(/\*\*(.*?)\*\*/g, "$1");
+  // Buang italic markdown: *text*
+  text = text.replace(/\*([^*]+)\*/g, "$1");
   // Buang baris kosong berganda
   text = text.replace(/\n{3,}/g, "\n\n");
   return text.trim();
