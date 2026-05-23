@@ -514,7 +514,40 @@ app.post("/webhook", async function(req, res) {
       return res.sendStatus(200);
     }
 
+    // Media — baca gambar dengan Claude Vision
     if (!text && hasMedia) {
+      try {
+        var mediaData = await axios.get(
+          "https://api.wassenger.com/v1/messages/" + data.data.id + "/media",
+          { headers: { Token: WASSENGER_TOKEN }, responseType: "arraybuffer" }
+       );
+       var base64Image = Buffer.from(mediaData.data).toString("base64");
+       var mediaType = mediaData.headers["content-type"] || "image/jpeg";
+
+       var visionResponse = await claude.messages.create({
+         model: "claude-sonnet-4-5",
+         max_tokens: 300,
+         messages: [{
+           role: "user",
+           content: [
+             {
+               type: "image",
+              source: { type: "base64", media_type: mediaType, data: base64Image }
+            },
+            {
+              type: "text",
+              text: "Ini gambar dari buyer. Kalau ada alamat penghantaran, extract dan tulis semula dalam teks biasa. Kalau ini resit pembayaran, tulis 'RESIT'. Kalau bukan alamat atau resit, tulis 'TIADA'."
+           }
+        ]
+      }]
+    });
+
+    var extractedText = visionResponse.content[0].text.trim();
+    console.log("Vision extract:", extractedText);
+
+    if (extractedText === "TIADA") {
+      return res.sendStatus(200);
+    } else if (extractedText === "RESIT") {
       if (followUpQueue[phoneNumber] && followUpQueue[phoneNumber].stage === "ordered") {
         followUpQueue[phoneNumber].stage = "paid";
         followUpQueue[phoneNumber].done = true;
@@ -523,7 +556,16 @@ app.post("/webhook", async function(req, res) {
         await hantarMesej(phoneNumber, "Terima kasih Cik! Resit dah kami terima. Boleh Cik berikan nama penuh dan alamat penghantaran? 😊");
       }
       return res.sendStatus(200);
+    } else {
+      // Ada alamat — inject dalam sesi dan teruskan flow normal
+      text = extractedText;
+      // JANGAN return — biarkan teruskan ke bawah untuk process
     }
+  } catch (err) {
+    console.error("Error vision:", err.message);
+    return res.sendStatus(200);
+  }
+}
 
     if (!from || !text) return res.sendStatus(200);
 
