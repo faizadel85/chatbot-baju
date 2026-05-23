@@ -558,6 +558,25 @@ app.post("/webhook", async function(req, res) {
       await hantarMesej("601123726341", "PERHATIAN - REQUEST PENUKARAN!\n\nNo Tel: " + phoneNumber + "\nMesej: " + text + "\n\nSila semak segera!");
     }
 
+   // Tambah selepas detect penukaran, sebelum setup follow up queue
+   var kataTolak = [
+     "tak nak", "taknak", "xnak", "tak jadi", "takjadi",
+     "tak minat", "takminat", "x minat", "tidak berminat",
+     "tak berminat", "cancel", "batalkan", "tak berkenan",
+     "tak perlu", "takpe", "ok takpe", "xpe", "dah ada",
+     "dah beli", "mahal", "tak mampu", "budget tak cukup",
+     "lain kali", "maybe later", "next time", "tak dulu"
+];
+
+if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) {
+  if (followUpQueue[phoneNumber]) {
+    followUpQueue[phoneNumber].done = true;
+    followUpQueue[phoneNumber].sent1 = true;
+    followUpQueue[phoneNumber].sent2 = true;
+    console.log("Buyer tolak — follow up distop: " + phoneNumber);
+  }
+} 
+
     if (!followUpQueue[phoneNumber]) {
       followUpQueue[phoneNumber] = {
         stage: "browsing", lastReply: Date.now(),
