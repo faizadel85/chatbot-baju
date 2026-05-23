@@ -490,6 +490,19 @@ app.post("/webhook", async function(req, res) {
       (data.data.contact && data.data.contact.wid) || "";
     var text = data.data.body || data.data.text ||
       data.data.caption || data.data.message || "";
+
+   // ===== DETECT QUOTED MESSAGE =====
+   var quotedText = "";
+   if (data.data.quotedMsg && data.data.quotedMsg.body) {
+     quotedText = data.data.quotedMsg.body;
+   } else if (data.data.contextInfo && data.data.contextInfo.quotedMessage) {
+     var qMsg = data.data.contextInfo.quotedMessage;
+     quotedText = qMsg.conversation || qMsg.caption ||
+       (qMsg.extendedTextMessage && qMsg.extendedTextMessage.text) || "";
+   }
+   if (quotedText) {
+     text = "[Quote: " + quotedText + "] " + text;
+  }
     var hasMedia = data.data.hasMedia || data.data.type === "image" || data.data.type === "document";
     var isVoice = data.data.type === "audio" || data.data.type === "ptt";
     var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "").replace("@lid", "");
