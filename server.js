@@ -702,7 +702,20 @@ if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) {
     var textLower = text.toLowerCase();
     var history = sesi[phoneNumber].map(function(m) { return m.content; }).join(" ");
 
-    var bajuKonteks = getBajuTerakhir(history, products);
+    // ===== PRIORITY: Check mesej terkini buyer dulu =====
+    var bajuDalamMesej = null;
+    var uniqueNamaCek = [];
+    products.forEach(function(p) {
+      if (!p || !p.Nama) return;
+      if (uniqueNamaCek.indexOf(p.Nama) === -1) uniqueNamaCek.push(p.Nama);
+    });
+    uniqueNamaCek.forEach(function(nama) {
+      if (textLower.includes(nama.toLowerCase())) bajuDalamMesej = nama;
+   });
+
+    // Kalau buyer sebut nama baju dalam mesej terkini — guna tu
+    // Kalau tak sebut — baru check history
+    var bajuKonteks = bajuDalamMesej || getBajuTerakhir(history, products);
     var historyLower = history.toLowerCase();
     var dalamOrderFlow = historyLower.includes("postage") || historyLower.includes("total") ||
       historyLower.includes("bank transfer") || historyLower.includes("cod") ||
