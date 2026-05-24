@@ -493,16 +493,59 @@ app.post("/webhook", async function(req, res) {
 
    // ===== DETECT QUOTED MESSAGE =====
    var quotedText = "";
-   if (data.data.quotedMsg && data.data.quotedMsg.body) {
-     quotedText = data.data.quotedMsg.body;
+   var quotedMsgId = "";
+
+   if (data.data.quotedMsg) {
+     quotedText = data.data.quotedMsg.body || data.data.quotedMsg.caption || "";
+     quotedMsgId = data.data.quotedMsg.id || "";
    } else if (data.data.contextInfo && data.data.contextInfo.quotedMessage) {
      var qMsg = data.data.contextInfo.quotedMessage;
      quotedText = qMsg.conversation || qMsg.caption ||
        (qMsg.extendedTextMessage && qMsg.extendedTextMessage.text) || "";
+     quotedMsgId = data.data.contextInfo.stanzaId || "";
    }
+
+   // Kalau quoted message ada ID tapi teks kosong — mungkin gambar
+   // Cuba Vision untuk identify warna/baju dari gambar yang diquote
+   if (quotedMsgId && !quotedText) {
+     try {
+       var qMediaData = await axios.get(
+         "https://api.wassenger.com/v1/messages/" + quotedMsgId + "/media",
+         { headers: { Token: WASSENGER_TOKEN }, responseType: "arraybuffer" }
+       );
+       var qBase64 = Buffer.from(qMediaData.data).toString("base64");
+       var qMediaType = qMediaData.headers["content-type"] || "image/jpeg";
+
+       var qVision = await claude.messages.create({
+         model: "claude-sonnet-4-5",
+         max_tokens: 100,
+         messages: [{
+           role: "user",
+           content: [
+             {
+               type: "image",
+               source: { type: "base64", media_type: qMediaType, data: qBase64 }
+             },
+             {
+               type: "text",
+               text: "Gambar baju ini. Nyatakan nama baju dan warna yang tertera dalam gambar. Jawab dalam format: BAJU: [nama] | WARNA: [warna]. Kalau tak nampak, jawab TIADA."
+             }
+           ]
+         }]
+       });
+
+       var qVisionText = qVision.content[0].text.trim();
+       if (qVisionText !== "TIADA") {
+         quotedText = qVisionText;
+       }
+     } catch (err) {
+       console.error("Error quoted vision:", err.message);
+     }
+   }
+
    if (quotedText) {
-     text = "[Quote: " + quotedText + "] " + text;
-  }
+     text = "[Buyer quote gambar — " + quotedText + "] " + text;
+   }
     var hasMedia = data.data.hasMedia || data.data.type === "image" || data.data.type === "document";
     var isVoice = data.data.type === "audio" || data.data.type === "ptt";
     var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "").replace("@lid", "");
