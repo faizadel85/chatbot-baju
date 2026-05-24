@@ -824,6 +824,12 @@ app.post("/webhook", async function(req, res) {
    }
 
    if (buyerPilihQR && process.env.QR_IMAGE_URL) {
+    followUpQueue[phoneNumber].stage = "ordered";
+    followUpQueue[phoneNumber].orderedAt = Date.now();
+    followUpQueue[phoneNumber].sent3a = false;
+    followUpQueue[phoneNumber].sent3b = false;
+    followUpQueue[phoneNumber].done = false;
+
      await hantarMesej(phoneNumber, jawapan);
      await new Promise(function(r) { setTimeout(r, 1000); });
      await hantarGambar(phoneNumber, "Ini QR code untuk pembayaran Cik 😊", process.env.QR_IMAGE_URL);
