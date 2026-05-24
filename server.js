@@ -774,10 +774,13 @@ if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) {
       "qr", "qr pay", "scan qr"
     ].some(function(k) { return jawapan.toLowerCase().includes(k); });
 
+    console.log("Jawapan Claude:", jawapan); 
+
     console.log("buyerPilihQR:", buyerPilihQR);
     console.log("claudeSebutQR:", claudeSebutQR);
     console.log("QR_URL:", process.env.QR_IMAGE_URL);
     console.log("jawapan lower:", jawapan.toLowerCase().substring(0, 100));
+
     if ((buyerPilihQR || claudeSebutQR) && process.env.QR_IMAGE_URL) {
       await hantarMesej(phoneNumber, jawapan);
       await new Promise(function(r) { setTimeout(r, 1000); });
