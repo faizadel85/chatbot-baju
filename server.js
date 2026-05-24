@@ -764,6 +764,24 @@ if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) {
       });
       var scJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
       scJawapan = sanitizeJawapan(scJawapan);
+
+    // ===== AUTO HANTAR QR CODE =====
+    var buyerPilihQR = [
+      "qr", "qr pay", "qr code", "scan qr", "bayar qr"
+    ].some(function(k) { return text.toLowerCase().includes(k); });
+
+    var claudeSebuttQR = [
+      "qr", "qr pay", "scan qr"
+    ].some(function(k) { return jawapan.toLowerCase().includes(k); });
+
+    if ((buyerPilihQR || claudeSebutQR) && process.env.QR_IMAGE_URL) {
+      await hantarMesej(phoneNumber, jawapan);
+      await new Promise(function(r) { setTimeout(r, 1000); });
+      await hantarGambar(phoneNumber, "Ini QR code untuk pembayaran Cik 😊", process.env.QR_IMAGE_URL);
+      sesi[phoneNumber].push({ role: "assistant", content: jawapan });
+      await simpanSesi(phoneNumber, sesi[phoneNumber]);
+      return res.sendStatus(200);
+    }
       sesi[phoneNumber].push({ role: "assistant", content: scJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
       if (bajuSC && bajuSC.Gambar_URL) {
