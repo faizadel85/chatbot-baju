@@ -194,31 +194,17 @@ async function callClaude(systemPrompt, messages, maxTokens) {
   }
 }
 
-// ===== CLAUDE DECIDE — Tanya Claude gambar apa nak dihantar =====
 async function claudeDecideGambar(jawapan, history, products, katalog, sizeChartImages) {
   try {
-    // Senarai semua gambar yang ada
     var senaraiGambar = [];
-
-    // Tambah katalog
     katalog.forEach(function(k) {
-      if (k && k.Nama && k.Gambar_URL) {
-        senaraiGambar.push("KATALOG:" + k.Nama + "|" + k.Gambar_URL);
-      }
+      if (k && k.Nama && k.Gambar_URL) senaraiGambar.push("KATALOG:" + k.Nama + "|" + k.Gambar_URL);
     });
-
-    // Tambah gambar warna specific
     products.forEach(function(p) {
-      if (p && p.Nama && p.Warna && p.Gambar_URL) {
-        senaraiGambar.push("WARNA:" + p.Nama + " " + p.Warna + "|" + p.Gambar_URL);
-      }
+      if (p && p.Nama && p.Warna && p.Gambar_URL) senaraiGambar.push("WARNA:" + p.Nama + " " + p.Warna + "|" + p.Gambar_URL);
     });
-
-    // Tambah size chart
     sizeChartImages.forEach(function(s) {
-      if (s && s.Nama && s.Gambar_URL) {
-        senaraiGambar.push("SIZECHART:" + s.Nama + "|" + s.Gambar_URL);
-      }
+      if (s && s.Nama && s.Gambar_URL) senaraiGambar.push("SIZECHART:" + s.Nama + "|" + s.Gambar_URL);
     });
 
     var decisionPrompt = "Kamu adalah sistem yang memutuskan gambar mana perlu dihantar kepada buyer.\n\n" +
@@ -231,33 +217,22 @@ async function claudeDecideGambar(jawapan, history, products, katalog, sizeChart
       "- Kalau bot tunjuk warna specific → hantar WARNA yang berkaitan\n" +
       "- Kalau bot tanya saiz/ukuran → hantar SIZECHART baju berkaitan\n" +
       "- Kalau bot sekadar jawab soalan biasa tanpa tunjuk produk → jawab TIADA\n" +
-      "- Kalau dalam order flow (tanya alamat, payment dll) → jawab TIADA\n\n" +
-      "Jawab HANYA dalam format ini (boleh lebih dari 1 baris kalau perlu beberapa gambar):\n" +
-      "HANTAR:URL_GAMBAR\n" +
-      "atau\n" +
-      "TIADA\n\n" +
-      "JANGAN tulis apa-apa lain selain format di atas.";
+      "- Kalau dalam order flow (tanya alamat, payment, QR dll) → jawab TIADA\n\n" +
+      "Jawab HANYA dalam format ini:\nHANTAR:URL_GAMBAR\natau\nTIADA\n\nJANGAN tulis apa-apa lain.";
 
-    var decision = await callClaude(decisionPrompt,
-      [{ role: "user", content: "Tentukan gambar." }], 300);
-
+    var decision = await callClaude(decisionPrompt, [{ role: "user", content: "Tentukan gambar." }], 300);
     decision = decision.trim();
 
-    if (decision === "TIADA" || !decision.includes("HANTAR:")) {
-      return [];
-    }
+    if (decision === "TIADA" || !decision.includes("HANTAR:")) return [];
 
-    // Parse semua URL
     var urls = [];
-    var lines = decision.split("\n");
-    lines.forEach(function(line) {
+    decision.split("\n").forEach(function(line) {
       line = line.trim();
       if (line.startsWith("HANTAR:")) {
         var url = line.replace("HANTAR:", "").trim();
         if (url) urls.push(url);
       }
     });
-
     return urls;
   } catch (err) {
     console.error("Error claudeDecideGambar:", err.message);
@@ -425,8 +400,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "BAHASA: Gunakan HANYA Bahasa Malaysia. DILARANG guna perkataan Indonesia seperti cocok, oke, yuk, dong, sih, deh, banget, dikonfirmasi, konfirmasi.\n" +
     "Guna perkataan Malaysia: 'disahkan' bukan 'dikonfirmasi', 'sesuai' bukan 'cocok', 'baik' bukan 'oke'.\n" +
     "GAYA: Ayat pendek, mudah faham, profesional. Maksimum 3-4 ayat per jawapan.\n\n" +
-    konteksText +
-    orderFlowText +
+    konteksText + orderFlowText +
     "PRODUK:\n" + senaraiProduk + "\n\n" +
     "PANDUAN SAIZ:\n" + sizeText + "\n\n" +
     "DETAIL PRODUK:\n" + detailText + "\n\n" +
@@ -442,8 +416,10 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- Untuk soalan tentang feature baju, rujuk DETAIL PRODUK sahaja\n" +
     "- Jika stok = 0: beritahu habis, cadang warna lain, kalau tak nak cadang baju lain\n" +
     "- Saiz 3XL dan 4XL ada tambahan RM10\n" +
-    "- Kaedah Pembayaran: Bank Transfer atau COD\n" +
+    "- Kaedah Pembayaran: Bank Transfer, QR Pay atau COD\n" +
     "- COD: Tambah RM4 kepada kos postage\n" +
+    "- QR Pay: Buyer boleh scan QR code untuk bayar terus\n" +
+    "- Selepas QR Pay, minta resit dan nama penama akaun\n" +
     "- Kadar Postage Semenanjung: 1pcs RM6, 2-5pcs RM4/pcs, 6pcs ke atas RM2/pcs\n" +
     "- Kadar Postage Sabah & Sarawak: 1pcs RM13, 2-5pcs RM8/pcs, 6pcs ke atas RM6/pcs\n" +
     "- Maklumat Akaun Bank: MAYBANK | Adel Adyana Elegance | 551100323485\n" +
@@ -463,12 +439,12 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- Flow order:\n" +
     "  1. Confirm beli → tanya lokasi (Semenanjung/Sabah/Sarawak)\n" +
     "  2. Kira postage → beritahu total\n" +
-    "  3. Tanya kaedah bayar (Bank Transfer/COD)\n" +
+    "  3. Tanya kaedah bayar (Bank Transfer/QR Pay/COD)\n" +
     "  4. COD → tulis ORDER_COD_CONFIRMED\n" +
-    "  4b. Resit bank transfer → tulis ORDER_RECEIPT_RECEIVED\n" +
+    "  4b. Resit bank transfer/QR → tulis ORDER_RECEIPT_RECEIVED\n" +
     "  5. Minta details penghantaran\n" +
     "  6. Semua details lengkap → WAJIB tulis tepat seperti ini tanpa ubah format: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|postage|total|kaedahbayar|penamaakaun|nota\n" +
-    "  PENTING: ORDER_CONFIRMED mesti ditulis dalam jawapan — ini adalah trigger sistem untuk simpan order. Tanpa ORDER_CONFIRMED, order tidak akan disimpan!\n" +
+    "  PENTING: ORDER_CONFIRMED mesti ditulis dalam jawapan — ini adalah trigger sistem untuk simpan order.\n" +
     "- JANGAN minta details sebelum resit atau COD confirm\n" +
     "- Jika tanya size chart, jawab: Ini size chart untuk Cik 😊\n" +
     "- WAJIB: Setiap jawapan ada soalan susulan\n" +
@@ -491,64 +467,48 @@ app.post("/webhook", async function(req, res) {
     var text = data.data.body || data.data.text ||
       data.data.caption || data.data.message || "";
 
-   // ===== DETECT QUOTED MESSAGE =====
-   var quotedText = "";
-   var quotedMsgId = "";
+    // ===== DETECT QUOTED MESSAGE =====
+    var quotedText = "";
+    var quotedMsgId = "";
+    if (data.data.quotedMsg) {
+      quotedText = data.data.quotedMsg.body || data.data.quotedMsg.caption || "";
+      quotedMsgId = data.data.quotedMsg.id || "";
+    } else if (data.data.contextInfo && data.data.contextInfo.quotedMessage) {
+      var qMsg = data.data.contextInfo.quotedMessage;
+      quotedText = qMsg.conversation || qMsg.caption ||
+        (qMsg.extendedTextMessage && qMsg.extendedTextMessage.text) || "";
+      quotedMsgId = data.data.contextInfo.stanzaId || "";
+    }
 
-   if (data.data.quotedMsg) {
-     quotedText = data.data.quotedMsg.body || data.data.quotedMsg.caption || "";
-     quotedMsgId = data.data.quotedMsg.id || "";
-   } else if (data.data.contextInfo && data.data.contextInfo.quotedMessage) {
-     var qMsg = data.data.contextInfo.quotedMessage;
-     quotedText = qMsg.conversation || qMsg.caption ||
-       (qMsg.extendedTextMessage && qMsg.extendedTextMessage.text) || "";
-     quotedMsgId = data.data.contextInfo.stanzaId || "";
-   }
+    // Cuba Vision untuk quoted image
+    if (quotedMsgId && !quotedText) {
+      try {
+        var qMediaData = await axios.get(
+          "https://api.wassenger.com/v1/messages/" + quotedMsgId + "/media",
+          { headers: { Token: WASSENGER_TOKEN }, responseType: "arraybuffer" }
+        );
+        var qBase64 = Buffer.from(qMediaData.data).toString("base64");
+        var qMediaType = qMediaData.headers["content-type"] || "image/jpeg";
+        var qVision = await claude.messages.create({
+          model: "claude-sonnet-4-5", max_tokens: 100,
+          messages: [{ role: "user", content: [
+            { type: "image", source: { type: "base64", media_type: qMediaType, data: qBase64 } },
+            { type: "text", text: "Gambar baju ini. Nyatakan nama baju dan warna yang tertera dalam gambar. Jawab dalam format: BAJU: [nama] | WARNA: [warna]. Kalau tak nampak, jawab TIADA." }
+          ]}]
+        });
+        var qVisionText = qVision.content[0].text.trim();
+        if (qVisionText !== "TIADA") quotedText = qVisionText;
+      } catch (err) { console.error("Error quoted vision:", err.message); }
+    }
 
-   // Kalau quoted message ada ID tapi teks kosong — mungkin gambar
-   // Cuba Vision untuk identify warna/baju dari gambar yang diquote
-   if (quotedMsgId && !quotedText) {
-     try {
-       var qMediaData = await axios.get(
-         "https://api.wassenger.com/v1/messages/" + quotedMsgId + "/media",
-         { headers: { Token: WASSENGER_TOKEN }, responseType: "arraybuffer" }
-       );
-       var qBase64 = Buffer.from(qMediaData.data).toString("base64");
-       var qMediaType = qMediaData.headers["content-type"] || "image/jpeg";
+    if (quotedText) {
+      text = "[Buyer quote gambar — " + quotedText + "] " + text;
+    }
+    // Nota sistem kalau buyer quote gambar tapi teks pendek
+    if (quotedMsgId && !quotedText && text && text.length < 30) {
+      text = text + " [NOTA SISTEM: Buyer mungkin quote gambar untuk pilih warna. Minta buyer taip nama warna yang dipilih untuk elak kesilapan hantar baju.]";
+    }
 
-       var qVision = await claude.messages.create({
-         model: "claude-sonnet-4-5",
-         max_tokens: 100,
-         messages: [{
-           role: "user",
-           content: [
-             {
-               type: "image",
-               source: { type: "base64", media_type: qMediaType, data: qBase64 }
-             },
-             {
-               type: "text",
-               text: "Gambar baju ini. Nyatakan nama baju dan warna yang tertera dalam gambar. Jawab dalam format: BAJU: [nama] | WARNA: [warna]. Kalau tak nampak, jawab TIADA."
-             }
-           ]
-         }]
-       });
-
-       var qVisionText = qVision.content[0].text.trim();
-       if (qVisionText !== "TIADA") {
-         quotedText = qVisionText;
-       }
-     } catch (err) {
-       console.error("Error quoted vision:", err.message);
-     }
-   }
-
-   if (quotedText) {
-     text = "[Buyer quote gambar — " + quotedText + "] " + text;
-   }
-   if (quotedMsgId && !quotedText && text && text.length < 30) {
-     text = text + " [NOTA SISTEM: Buyer mungkin quote gambar untuk pilih warna. Minta buyer taip nama warna yang dipilih untuk elak kesilapan hantar baju.]";
-   }
     var hasMedia = data.data.hasMedia || data.data.type === "image" || data.data.type === "document";
     var isVoice = data.data.type === "audio" || data.data.type === "ptt";
     var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "").replace("@lid", "");
@@ -560,61 +520,48 @@ app.post("/webhook", async function(req, res) {
       return res.sendStatus(200);
     }
 
-    // Media — baca gambar dengan Claude Vision
+    // ===== MEDIA — Claude Vision =====
     if (!text && hasMedia) {
       try {
         var mediaData = await axios.get(
           "https://api.wassenger.com/v1/messages/" + data.data.id + "/media",
           { headers: { Token: WASSENGER_TOKEN }, responseType: "arraybuffer" }
-       );
-       var base64Image = Buffer.from(mediaData.data).toString("base64");
-       var mediaType = mediaData.headers["content-type"] || "image/jpeg";
-
-       var visionResponse = await claude.messages.create({
-         model: "claude-sonnet-4-5",
-         max_tokens: 300,
-         messages: [{
-           role: "user",
-           content: [
-             {
-               type: "image",
-              source: { type: "base64", media_type: mediaType, data: base64Image }
-            },
-            {
-              type: "text",
-              text: "Ini gambar dari buyer. Kalau ada alamat penghantaran, extract dan tulis semula dalam teks biasa. Kalau ini resit pembayaran, tulis 'RESIT'. Kalau bukan alamat atau resit, tulis 'TIADA'."
-           }
-        ]
-      }]
-    });
-
-    var extractedText = visionResponse.content[0].text.trim();
-    console.log("Vision extract:", extractedText);
-
-    if (extractedText === "TIADA") {
-      return res.sendStatus(200);
-    } else if (extractedText === "RESIT") {
-      if (followUpQueue[phoneNumber] && followUpQueue[phoneNumber].stage === "ordered") {
-        followUpQueue[phoneNumber].stage = "paid";
-        followUpQueue[phoneNumber].done = true;
-        followUpQueue[phoneNumber].sent3a = true;
-        followUpQueue[phoneNumber].sent3b = true;
-        await hantarMesej(phoneNumber, "Terima kasih Cik! Resit dah kami terima. Boleh Cik berikan nama penuh dan alamat penghantaran? 😊");
+        );
+        var base64Image = Buffer.from(mediaData.data).toString("base64");
+        var mediaType = mediaData.headers["content-type"] || "image/jpeg";
+        var visionResponse = await claude.messages.create({
+          model: "claude-sonnet-4-5", max_tokens: 300,
+          messages: [{ role: "user", content: [
+            { type: "image", source: { type: "base64", media_type: mediaType, data: base64Image } },
+            { type: "text", text: "Ini gambar dari buyer. Kalau ada alamat penghantaran, extract dan tulis semula dalam teks biasa. Kalau ini resit pembayaran, tulis 'RESIT'. Kalau bukan alamat atau resit, tulis 'TIADA'." }
+          ]}]
+        });
+        var extractedText = visionResponse.content[0].text.trim();
+        console.log("Vision extract:", extractedText);
+        if (extractedText === "TIADA") {
+          return res.sendStatus(200);
+        } else if (extractedText === "RESIT") {
+          if (followUpQueue[phoneNumber] && followUpQueue[phoneNumber].stage === "ordered") {
+            followUpQueue[phoneNumber].stage = "paid";
+            followUpQueue[phoneNumber].done = true;
+            followUpQueue[phoneNumber].sent3a = true;
+            followUpQueue[phoneNumber].sent3b = true;
+            await hantarMesej(phoneNumber, "Terima kasih Cik! Resit dah kami terima. Boleh Cik berikan nama penuh dan alamat penghantaran? 😊");
+          }
+          return res.sendStatus(200);
+        } else {
+          text = extractedText;
+          // teruskan flow normal
+        }
+      } catch (err) {
+        console.error("Error vision:", err.message);
+        return res.sendStatus(200);
       }
-      return res.sendStatus(200);
-    } else {
-      // Ada alamat — inject dalam sesi dan teruskan flow normal
-      text = extractedText;
-      // JANGAN return — biarkan teruskan ke bawah untuk process
     }
-  } catch (err) {
-    console.error("Error vision:", err.message);
-    return res.sendStatus(200);
-  }
-}
 
     if (!from || !text) return res.sendStatus(200);
 
+    // ===== STOP LIST =====
     if (!global.stopList) global.stopList = {};
     if (phoneNumber === "601123726341") {
       if (text.startsWith("/stop ")) {
@@ -627,6 +574,17 @@ app.post("/webhook", async function(req, res) {
         var startNum = text.replace("/start ", "").trim();
         delete global.stopList[startNum];
         await hantarMesej(phoneNumber, "Bot diaktif semula untuk: " + startNum + " ✅");
+        return res.sendStatus(200);
+      }
+      if (text.startsWith("/inject ")) {
+        var parts = text.replace("/inject ", "").trim();
+        var spaceIdx = parts.indexOf(" ");
+        var targetNum = parts.substring(0, spaceIdx);
+        var injectText = parts.substring(spaceIdx + 1);
+        if (!sesi[targetNum]) sesi[targetNum] = [];
+        sesi[targetNum].push({ role: "user", content: injectText });
+        await simpanSesi(targetNum, sesi[targetNum]);
+        await hantarMesej(phoneNumber, "Inject berjaya untuk: " + targetNum + " ✅");
         return res.sendStatus(200);
       }
     }
@@ -651,6 +609,7 @@ app.post("/webhook", async function(req, res) {
       return res.sendStatus(200);
     }
 
+    // ===== DETECT PENUKARAN =====
     var katatukar = ["nak tukar", "nk tukar", "tukar alamat", "tukar baju", "tukar saiz", "tukar size",
       "tukar warna", "ubah alamat", "ubah baju", "ubah saiz", "ubah size", "ubah warna",
       "salah alamat", "salah saiz", "salah size", "salah baju", "salah warna",
@@ -659,25 +618,25 @@ app.post("/webhook", async function(req, res) {
       await hantarMesej("601123726341", "PERHATIAN - REQUEST PENUKARAN!\n\nNo Tel: " + phoneNumber + "\nMesej: " + text + "\n\nSila semak segera!");
     }
 
-   // Tambah selepas detect penukaran, sebelum setup follow up queue
-   var kataTolak = [
-     "tak nak", "taknak", "xnak", "tak jadi", "takjadi",
-     "tak minat", "takminat", "x minat", "tidak berminat",
-     "tak berminat", "cancel", "batalkan", "tak berkenan",
-     "tak perlu", "takpe", "ok takpe", "xpe", "dah ada",
-     "dah beli", "mahal", "tak mampu", "budget tak cukup",
-     "lain kali", "maybe later", "next time", "tak dulu"
-];
+    // ===== DETECT TOLAK — STOP FOLLOW UP =====
+    var kataTolak = [
+      "tak nak", "taknak", "xnak", "tak jadi", "takjadi",
+      "tak minat", "takminat", "x minat", "tidak berminat",
+      "tak berminat", "cancel", "batalkan", "tak berkenan",
+      "tak perlu", "takpe", "ok takpe", "xpe", "dah ada",
+      "dah beli", "mahal", "tak mampu", "budget tak cukup",
+      "lain kali", "maybe later", "next time", "tak dulu"
+    ];
+    if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) {
+      if (followUpQueue[phoneNumber]) {
+        followUpQueue[phoneNumber].done = true;
+        followUpQueue[phoneNumber].sent1 = true;
+        followUpQueue[phoneNumber].sent2 = true;
+        console.log("Buyer tolak — follow up distop: " + phoneNumber);
+      }
+    }
 
-if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) {
-  if (followUpQueue[phoneNumber]) {
-    followUpQueue[phoneNumber].done = true;
-    followUpQueue[phoneNumber].sent1 = true;
-    followUpQueue[phoneNumber].sent2 = true;
-    console.log("Buyer tolak — follow up distop: " + phoneNumber);
-  }
-} 
-
+    // ===== SETUP FOLLOW UP QUEUE =====
     if (!followUpQueue[phoneNumber]) {
       followUpQueue[phoneNumber] = {
         stage: "browsing", lastReply: Date.now(),
@@ -714,11 +673,9 @@ if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) {
     });
     uniqueNamaCek.forEach(function(nama) {
       if (textLower.includes(nama.toLowerCase())) bajuDalamMesej = nama;
-   });
-
-    // Kalau buyer sebut nama baju dalam mesej terkini — guna tu
-    // Kalau tak sebut — baru check history
+    });
     var bajuKonteks = bajuDalamMesej || getBajuTerakhir(history, products);
+
     var historyLower = history.toLowerCase();
     var dalamOrderFlow = historyLower.includes("postage") || historyLower.includes("total") ||
       historyLower.includes("bank transfer") || historyLower.includes("cod") ||
@@ -726,6 +683,7 @@ if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) {
 
     var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamOrderFlow);
 
+    // ===== DETECT JANJI =====
     var kataJanji = ["kejap", "sat", "jap", "sekejap", "nanti", "later",
       "dengan anak", "dengan suami", "dengan isteri", "dengan husband",
       "dengan wife", "dengan family", "dengan mak", "dengan ayah",
@@ -749,7 +707,7 @@ if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) {
       }
     }
 
-    // ===== SIZE CHART — kekal keyword detect sbb specific =====
+    // ===== 1. SIZE CHART =====
     var kataSizeChart = ["size chart", "measurement", "carta saiz", "ukuran baju",
       "size guide", "saiz chart", "chart size", "measurement chart",
       "tgk chart", "nk tgk size", "nak tgk size", "chart", "sizing", "carta size",
@@ -764,31 +722,6 @@ if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) {
       });
       var scJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
       scJawapan = sanitizeJawapan(scJawapan);
-
-    // ===== AUTO HANTAR QR CODE =====
-    var buyerPilihQR = [
-      "qr", "qr pay", "qr code", "scan qr", "bayar qr"
-    ].some(function(k) { return text.toLowerCase().includes(k); });
-
-    var claudeSebutQR = [
-      "qr", "qr pay", "scan qr"
-    ].some(function(k) { return jawapan.toLowerCase().includes(k); });
-
-    console.log("Jawapan Claude:", jawapan); 
-
-    console.log("buyerPilihQR:", buyerPilihQR);
-    console.log("claudeSebutQR:", claudeSebutQR);
-    console.log("QR_URL:", process.env.QR_IMAGE_URL);
-    console.log("jawapan lower:", jawapan.toLowerCase().substring(0, 100));
-
-    if ((buyerPilihQR || claudeSebutQR) && process.env.QR_IMAGE_URL) {
-      await hantarMesej(phoneNumber, jawapan);
-      await new Promise(function(r) { setTimeout(r, 1000); });
-      await hantarGambar(phoneNumber, "Ini QR code untuk pembayaran Cik 😊", process.env.QR_IMAGE_URL);
-      sesi[phoneNumber].push({ role: "assistant", content: jawapan });
-      await simpanSesi(phoneNumber, sesi[phoneNumber]);
-      return res.sendStatus(200);
-    }
       sesi[phoneNumber].push({ role: "assistant", content: scJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
       if (bajuSC && bajuSC.Gambar_URL) {
@@ -805,7 +738,7 @@ if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) {
       return res.sendStatus(200);
     }
 
-    // ===== SEMUA KATALOG — kekal keyword detect =====
+    // ===== 2. SEMUA KATALOG =====
     var kataKatalog = [
       "tengok gambar semua", "tunjuk semua design", "boleh tunjuk koleksi", "tengok koleksi",
       "nak tengok semua koleksi", "semua design", "semua baju", "koleksi baju",
@@ -839,7 +772,7 @@ if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) {
       return res.sendStatus(200);
     }
 
-    // ===== PROSES NORMAL — Claude jawab dulu =====
+    // ===== 3. PROSES NORMAL =====
     var jawapan = await callClaude(systemPrompt, sesi[phoneNumber], 500);
     jawapan = sanitizeJawapan(jawapan);
 
@@ -875,16 +808,29 @@ if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) {
       followUpQueue[phoneNumber].sent3b = true;
     }
 
+    // ===== AUTO HANTAR QR CODE =====
+    var buyerPilihQR = ["qr", "qr pay", "qr code", "scan qr", "bayar qr"]
+      .some(function(k) { return text.toLowerCase().includes(k); });
+    var claudeSebutQR = ["qr", "qr pay", "scan qr"]
+      .some(function(k) { return jawapan.toLowerCase().includes(k); });
+
+    if ((buyerPilihQR || claudeSebutQR) && process.env.QR_IMAGE_URL) {
+      await hantarMesej(phoneNumber, jawapan);
+      await new Promise(function(r) { setTimeout(r, 1000); });
+      await hantarGambar(phoneNumber, "Ini QR code untuk pembayaran Cik 😊", process.env.QR_IMAGE_URL);
+      sesi[phoneNumber].push({ role: "assistant", content: jawapan });
+      await simpanSesi(phoneNumber, sesi[phoneNumber]);
+      return res.sendStatus(200);
+    }
+
     sesi[phoneNumber].push({ role: "assistant", content: jawapan });
     await simpanSesi(phoneNumber, sesi[phoneNumber]);
 
-    // ===== CLAUDE DECIDE — Tanya Claude gambar apa nak dihantar =====
+    // ===== CLAUDE DECIDE GAMBAR =====
     var gambarUrls = await claudeDecideGambar(jawapan, history, products, katalog, sizeChartImages);
 
     if (gambarUrls.length > 0) {
-      // Hantar teks jawapan dulu
       await hantarMesej(phoneNumber, jawapan);
-      // Kemudian hantar semua gambar
       for (var gi = 0; gi < gambarUrls.length; gi++) {
         await new Promise(function(r) { setTimeout(r, 1000); });
         await hantarGambar(phoneNumber, "😊", gambarUrls[gi]);
