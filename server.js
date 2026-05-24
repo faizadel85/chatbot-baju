@@ -546,6 +546,9 @@ app.post("/webhook", async function(req, res) {
    if (quotedText) {
      text = "[Buyer quote gambar — " + quotedText + "] " + text;
    }
+   if (quotedMsgId && !quotedText && text && text.length < 30) {
+     text = text + " [NOTA SISTEM: Buyer mungkin quote gambar untuk pilih warna. Minta buyer taip nama warna yang dipilih untuk elak kesilapan hantar baju.]";
+   }
     var hasMedia = data.data.hasMedia || data.data.type === "image" || data.data.type === "document";
     var isVoice = data.data.type === "audio" || data.data.type === "ptt";
     var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "").replace("@lid", "");
