@@ -450,7 +450,12 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- WAJIB: Setiap jawapan ada soalan susulan\n" +
     "- Jawapan teks biasa sahaja\n" +
     "- JANGAN tambah ucapan perayaan (hari raya, christmas, tahun baru dll) melainkan buyer sebut dulu\n" +
-    "- JANGAN tambah ayat perpisahan panjang — maksimum 1 ayat ringkas sahaja";
+    "- JANGAN tambah ayat perpisahan panjang — maksimum 1 ayat ringkas sahaja\n" +
+    "- Polisi Penukaran/Pertukaran:\n" +
+    "  1. DEFECT: Baju boleh ditukar jika ada kecacatan. Buyer whatsapp admin dan hantar gambar bukti defect. Selepas admin verify, buyer pos balik kepada kami. Bila kami terima, kami akan pos baju baru.\n" +
+    "  2. SALAH SAIZ: Buyer boleh tukar saiz dengan whatsapp admin. Buyer perlu pos balik baju dan buat bayaran kos pos baju baru selepas kami terima baju yang tersalah saiz.\n" +
+    "  3. TIADA pertukaran untuk sebab lain selain defect atau salah saiz.\n" +
+    "  4. Untuk kedua-dua kes, minta buyer hubungi admin terus untuk proses lanjut.";
 }
 
 app.get("/", function(req, res) { res.send("Bot ADEL Adyana OK"); });
