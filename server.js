@@ -770,7 +770,7 @@ if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) {
       "qr", "qr pay", "qr code", "scan qr", "bayar qr"
     ].some(function(k) { return text.toLowerCase().includes(k); });
 
-    var claudeSebuttQR = [
+    var claudeSebutQR = [
       "qr", "qr pay", "scan qr"
     ].some(function(k) { return jawapan.toLowerCase().includes(k); });
 
