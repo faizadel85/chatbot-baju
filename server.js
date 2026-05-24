@@ -814,6 +814,11 @@ app.post("/webhook", async function(req, res) {
     var claudeSebutQR = ["qr", "qr pay", "scan qr"]
       .some(function(k) { return jawapan.toLowerCase().includes(k); });
 
+    console.log("=== QR CHECK ===");
+    console.log("buyerPilihQR:", buyerPilihQR);
+    console.log("claudeSebutQR:", claudeSebutQR);
+    console.log("QR_URL ada:", !!process.env.QR_IMAGE_URL);
+
     if ((buyerPilihQR || claudeSebutQR) && process.env.QR_IMAGE_URL) {
       await hantarMesej(phoneNumber, jawapan);
       await new Promise(function(r) { setTimeout(r, 1000); });
