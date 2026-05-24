@@ -809,24 +809,23 @@ app.post("/webhook", async function(req, res) {
     }
 
     // ===== AUTO HANTAR QR CODE =====
-    var buyerPilihQR = ["qr", "qr pay", "qr code", "scan qr", "bayar qr"]
+    var buyerPilihQR = ["qr pay", "qr code", "scan qr", "bayar qr", "nak qr", "pilih qr"]
       .some(function(k) { return text.toLowerCase().includes(k); });
-    var claudeSebutQR = ["qr", "qr pay", "scan qr"]
-      .some(function(k) { return jawapan.toLowerCase().includes(k); });
 
-    console.log("=== QR CHECK ===");
-    console.log("buyerPilihQR:", buyerPilihQR);
-    console.log("claudeSebutQR:", claudeSebutQR);
-    console.log("QR_URL ada:", !!process.env.QR_IMAGE_URL);
+   // Check "qr" sahaja sebagai exact word
+   var textWords = text.toLowerCase().split(/\s+/);
+   if (!buyerPilihQR && textWords.indexOf("qr") !== -1) {
+     buyerPilihQR = true;
+   }
 
-    if ((buyerPilihQR || claudeSebutQR) && process.env.QR_IMAGE_URL) {
-      await hantarMesej(phoneNumber, jawapan);
-      await new Promise(function(r) { setTimeout(r, 1000); });
-      await hantarGambar(phoneNumber, "Ini QR code untuk pembayaran Cik 😊", process.env.QR_IMAGE_URL);
-      sesi[phoneNumber].push({ role: "assistant", content: jawapan });
-      await simpanSesi(phoneNumber, sesi[phoneNumber]);
-      return res.sendStatus(200);
-    }
+   if (buyerPilihQR && process.env.QR_IMAGE_URL) {
+     await hantarMesej(phoneNumber, jawapan);
+     await new Promise(function(r) { setTimeout(r, 1000); });
+     await hantarGambar(phoneNumber, "Ini QR code untuk pembayaran Cik 😊", process.env.QR_IMAGE_URL);
+     sesi[phoneNumber].push({ role: "assistant", content: jawapan });
+     await simpanSesi(phoneNumber, sesi[phoneNumber]);
+     return res.sendStatus(200);
+   }
 
     sesi[phoneNumber].push({ role: "assistant", content: jawapan });
     await simpanSesi(phoneNumber, sesi[phoneNumber]);
