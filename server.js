@@ -443,6 +443,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- JANGAN tulis placeholder seperti [Sistem akan hantar gambar] atau [gambar katalog]\n" +
     "- JANGAN sebut 'sistem akan hantar', 'tunggu sebentar', 'saya hantar sekarang'\n" +
     "- Terus jawab natural sahaja, gambar akan keluar automatik\n" +
+    "- JANGAN tanya 'nak saya tunjukkan gambar?' atau 'nak tengok?' — terus jawab dan gambar akan keluar automatik\n" +
     "- LARANGAN MUTLAK: JANGAN tulis URL, link, markdown, bold dalam jawapan\n" +
     "- JANGAN sekali-kali tulis format ![...](url) atau [text](url)\n" +
     "- JANGAN senaraikan link gambar — gambar dihantar automatik oleh sistem\n" +
