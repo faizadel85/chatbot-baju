@@ -352,7 +352,7 @@ async function getSheetData(sheetName) {
   } catch (err) { console.error("Sheet error:", err); return []; }
 }
 
-function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamOrderFlow) {
+function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamOrderFlow, tarikhSekarang) {
   var senaraiProduk = products.map(function(p) {
     if (!p || !p.Nama) return "";
     return p.Nama + " | Warna: " + p.Warna +
@@ -383,6 +383,11 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
       " | Feature: " + p.Feature + " | Sesuai untuk: " + p.Sesuai_Untuk + "\n";
   });
 
+  var tarikhText = "";
+  if (tarikhSekarang) {
+    tarikhText = "\nTARIKH SEKARANG: " + tarikhSekarang + "\n" +
+      "Guna tarikh ini untuk kira anggaran sampai bila buyer tanya.\n";
+  }
   var konteksText = "";
   if (bajuKonteks) {
     konteksText = "\nKONTEKS PENTING: Buyer ini sedang bertanya tentang " + bajuKonteks +
@@ -402,7 +407,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "BAHASA: Gunakan HANYA Bahasa Malaysia. DILARANG guna perkataan Indonesia seperti cocok, oke, yuk, dong, sih, deh, banget, dikonfirmasi, konfirmasi.\n" +
     "Guna perkataan Malaysia: 'disahkan' bukan 'dikonfirmasi', 'sesuai' bukan 'cocok', 'baik' bukan 'oke'.\n" +
     "GAYA: Ayat pendek, mudah faham, profesional. Maksimum 3-4 ayat per jawapan.\n\n" +
-    konteksText + orderFlowText +
+    tarikhText + konteksText + orderFlowText +
     "SALES FLOW — BILA LEAD MASUK SPECIFIC DESIGN:\n" +
     "1. ACKNOWLEDGE MINAT — Puji pilihan buyer, jangan reply generic. Contoh: 'Cantik pilihan Cik! [Nama Design] memang antara bestseller kami'\n" +
     "2. TERUS CHECK SIZE — Jangan spam detail produk. Tanya: berat badan, tinggi, biasa pakai size apa\n" +
@@ -699,7 +704,14 @@ app.post("/webhook", async function(req, res) {
       historyLower.includes("bank transfer") || historyLower.includes("cod") ||
       historyLower.includes("nak beli") || historyLower.includes("order");
 
-    var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamOrderFlow);
+    var tarikhSekarang = new Date().toLocaleDateString("ms-MY", {
+      timeZone: "Asia/Kuala_Lumpur",
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
+    var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamOrderFlow, tarikhSekarang);
 
     // ===== DETECT JANJI =====
     var kataJanji = ["kejap", "sat", "jap", "sekejap", "nanti", "later",
