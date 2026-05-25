@@ -420,6 +420,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- Saiz 3XL dan 4XL ada tambahan RM10\n" +
     "- Kaedah Pembayaran: Bank Transfer, QR Pay atau COD\n" +
     "- COD: Tambah RM4 kepada kos postage\n" +
+    "- COD boleh untuk SEMUA kawasan termasuk Semenanjung, Sabah dan Sarawak\n" +
     "- QR Pay: Buyer boleh scan QR code untuk bayar terus\n" +
     "- Selepas QR Pay, minta resit dan nama penama akaun\n" +
     "- Kadar Postage Semenanjung: 1pcs RM6, 2-5pcs RM4/pcs, 6pcs ke atas RM2/pcs\n" +
