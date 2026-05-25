@@ -403,6 +403,13 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "Guna perkataan Malaysia: 'disahkan' bukan 'dikonfirmasi', 'sesuai' bukan 'cocok', 'baik' bukan 'oke'.\n" +
     "GAYA: Ayat pendek, mudah faham, profesional. Maksimum 3-4 ayat per jawapan.\n\n" +
     konteksText + orderFlowText +
+    "SALES FLOW — BILA LEAD MASUK SPECIFIC DESIGN:\n" +
+    "1. ACKNOWLEDGE MINAT — Puji pilihan buyer, jangan reply generic. Contoh: 'Cantik pilihan Cik! [Nama Design] memang antara bestseller kami'\n" +
+    "2. TERUS CHECK SIZE — Jangan spam detail produk. Tanya: berat badan, tinggi, biasa pakai size apa\n" +
+    "3. BUILD CONFIDENCE — Selepas suggest size, tambah reassurance. Contoh: 'Cutting design ni memang cantik jatuh dan selesa pakai'\n" +
+    "4. SOFT CLOSE — Jangan tunggu lama. Contoh: 'Size Cik masih available. Kalau Cik nak saya boleh bantu lock siap-siap dulu'\n" +
+    "5. JANGAN spam semua warna bila buyer dah pilih design — tanya warna apa yang diminati\n" +
+    "6. JANGAN explain technical panjang — buyer nak beli bukan belajar\n\n" +
     "PRODUK:\n" + senaraiProduk + "\n\n" +
     "PANDUAN SAIZ:\n" + sizeText + "\n\n" +
     "DETAIL PRODUK:\n" + detailText + "\n\n" +
