@@ -105,7 +105,9 @@ async function simpanOrder(data) {
       spreadsheetId: SHEET_ID, range: "Orders!A:O", valueInputOption: "RAW",
       resource: { values: [[tarikh, data.nama||"", data.noTel||"", data.alamat||"", data.poskod||"",
         data.bandar||"", data.negeri||"", data.produk||"", data.saiz||"", data.warna||"",
-        data.harga||"", data.kaedahBayar||"", data.penamaakaun||"", "Baru", data.nota||""]] }
+        data.harga||"",
+        (data.kaedahBayar||"") + (data.penamaakaun ? " | " + data.penamaakaun : ""),
+        "Baru"]] }
     });
     console.log("Order disimpan!");
     var notifMsg = "ORDER BARU!\n\nNama: "+(data.nama||"")+"\nNo Tel: "+(data.noTel||"")+
@@ -301,15 +303,15 @@ setInterval(async function() {
     for (var i = 1; i < rows.length; i++) {
       var row = rows[i];
       var noTel = row[2] || "";
-      var status = row[14] || "";
-      var trackingNo = row[15] || "";
-      var courier = row[16] || "";
-      var notifiedPacked = row[17] || "";
-      var notifiedShipped = row[18] || "";
+      var status = row[12] || "";
+      var trackingNo = row[13] || "";
+      var courier = row[14] || "";
+      var notifiedPacked = row[15] || "";
+      var notifiedShipped = row[16] || "";
       if (!noTel) continue;
       if (status === "Packed" && notifiedPacked !== "Yes") {
         await hantarMesej(noTel, "Assalamualaikum Cik! 😊\n\nOrder Cik sedang dipacking sekarang.\nKami akan maklumkan bila dah dihantar ya ❤️");
-        await sheets.spreadsheets.values.update({ spreadsheetId: SHEET_ID, range: "Orders!R" + (i + 1),
+        await sheets.spreadsheets.values.update({ spreadsheetId: SHEET_ID, range: "Orders!P" + (i + 1),
           valueInputOption: "RAW", resource: { values: [["Yes"]] } });
         console.log("Notif Packed dihantar ke: " + noTel);
       }
@@ -323,7 +325,7 @@ setInterval(async function() {
           "\nNo Tracking: " + trackingNo + "\n\n" + (courierUrl ? "Track di: " + courierUrl + "\n" : "") +
           "Anggaran tiba: 3-5 hari bekerja ❤️";
         await hantarMesej(noTel, notifShipped);
-        await sheets.spreadsheets.values.update({ spreadsheetId: SHEET_ID, range: "Orders!S" + (i + 1),
+        await sheets.spreadsheets.values.update({ spreadsheetId: SHEET_ID, range: "Orders!Q" + (i + 1),
           valueInputOption: "RAW", resource: { values: [["Yes"]] } });
         console.log("Notif Shipped dihantar ke: " + noTel);
       }
@@ -451,6 +453,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- Jawapan teks biasa sahaja\n" +
     "- JANGAN tambah ucapan perayaan (hari raya, christmas, tahun baru dll) melainkan buyer sebut dulu\n" +
     "- JANGAN tambah ayat perpisahan panjang — maksimum 1 ayat ringkas sahaja\n" +
+    "- Dalam ORDER_CONFIRMED, field nota HANYA isi maklumat ringkas. JANGAN masukkan ucapan panjang dalam nota.\n" +
     "- Polisi Penukaran/Pertukaran:\n" +
     "  1. DEFECT: Baju boleh ditukar jika ada kecacatan. Buyer whatsapp admin dan hantar gambar bukti defect. Selepas admin verify, buyer pos balik kepada kami. Bila kami terima, kami akan pos baju baru.\n" +
     "  2. SALAH SAIZ: Buyer boleh tukar saiz dengan whatsapp admin. Buyer perlu pos balik baju dan buat bayaran kos pos baju baru selepas kami terima baju yang tersalah saiz.\n" +
