@@ -678,6 +678,7 @@ app.post("/webhook", async function(req, res) {
     var produkDetail = await getSheetDataCached("produkDetail");
     var sizeChartImages = await getSheetDataCached("sizeChartImages");
     var katalog = await getSheetDataCached("Katalog");
+    var gambarReal = await getSheetDataCached("GambarReal");
     var textLower = text.toLowerCase();
     var history = sesi[phoneNumber].map(function(m) { return m.content; }).join(" ");
 
@@ -724,6 +725,48 @@ app.post("/webhook", async function(req, res) {
       }
     }
 
+    // ===== 0. DETECT GAMBAR REAL/CLOSE UP =====
+    var kataGambarReal = [
+      "close up", "closeup", "real", "bukan ai", "bukan gambar ai",
+      "gambar sebenar", "gambar real", "material kain", "texture",
+      "close up kain", "gambar betul"
+    ];
+    if (kataGambarReal.some(function(k) { return textLower.includes(k); })) {
+      var bajuSkrg = bajuKonteks || getBajuTerakhir(history, products);
+      var warnaSkrg = null;
+      products.forEach(function(p) {
+        if (p && p.Warna && history.toLowerCase().includes(p.Warna.toLowerCase())) {
+          warnaSkrg = p.Warna;
+        }
+      });
+
+      var gambarRealBaju = gambarReal.filter(function(g) {
+        if (!g || !g.Nama || !bajuSkrg) return false;
+        var namaMatch = g.Nama.toLowerCase().includes(bajuSkrg.toLowerCase());
+        if (warnaSkrg && g.Warna) {
+          return namaMatch && g.Warna.toLowerCase() === warnaSkrg.toLowerCase();
+        }
+        return namaMatch;
+      });
+
+      var grJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
+      grJawapan = sanitizeJawapan(grJawapan);
+      sesi[phoneNumber].push({ role: "assistant", content: grJawapan });
+      await simpanSesi(phoneNumber, sesi[phoneNumber]);
+
+      if (gambarRealBaju.length > 0) {
+        await hantarMesej(phoneNumber, grJawapan);
+        for (var gr = 0; gr < gambarRealBaju.length; gr++) {
+          if (gambarRealBaju[gr].Gambar_URL) {
+            await new Promise(function(r) { setTimeout(r, 1000); });
+            await hantarGambar(phoneNumber, "😊", gambarRealBaju[gr].Gambar_URL);
+          }
+        }
+      } else {
+        await hantarMesej(phoneNumber, grJawapan);
+      }
+      return res.sendStatus(200);
+    }
     // ===== 1. SIZE CHART =====
     var kataSizeChart = ["size chart", "measurement", "carta saiz", "ukuran baju",
       "size guide", "saiz chart", "chart size", "measurement chart",
