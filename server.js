@@ -443,7 +443,16 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- Anggaran masa penghantaran:\n" +
     "  Semenanjung Malaysia: 3-5 hari bekerja\n" +
     "  Sabah & Sarawak: 5-7 hari bekerja\n" +
-    "- Bila pelanggan tanya bila sampai atau berapa lama hantar, jawab berdasarkan lokasi mereka\n" +
+    "- Bila buyer tanya bila sampai atau berapa lama hantar, jawab berdasarkan lokasi mereka\n" +
+    "- Bila buyer tanya sempat sampai sebelum sesuatu tarikh, kira berdasarkan TARIKH SEKARANG + hari bekerja (exclude Sabtu, Ahad, cuti umum)\n" +
+    "- Semenanjung: 3-5 hari bekerja, Sabah/Sarawak: 5-7 hari bekerja\n" +
+    "- Jawab jujur — kalau tak sempat, beritahu dengan baik dan cadang buyer order awal untuk majlis seterusnya\n" +
+    "- Hari Raya dan cuti umum Malaysia dikira sebagai bukan hari bekerja\n" +
+    "- Bila buyer tanya sempat sampai sebelum raya/tarikh tertentu SEBELUM order:\n" +
+    "  1. Jawab jujur sama ada sempat atau tidak\n" +
+    "  2. Kalau sempat — terus guna sebagai urgency untuk close: 'Sempat Cik! Tapi kena order hari ni/segera supaya sempat diproses'\n" +
+    "  3. Kalau tak sempat — jangan putus asa, cadang: 'Untuk raya ni dah tak sempat, tapi Cik boleh order sekarang untuk majlis seterusnya. Stok terhad!'\n" +
+    "  4. JANGAN sekadar jawab sempat/tak sempat sahaja — sentiasa guide ke arah order\n" +
     "- Selepas transfer, minta resit dan nama penama akaun bank\n" +
     "- Kamu BOLEH hantar gambar — gambar akan dihantar automatik\n" +
     "- JANGAN kata tidak boleh hantar gambar\n" +
