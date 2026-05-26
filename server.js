@@ -430,6 +430,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- Untuk soalan tentang feature baju, rujuk DETAIL PRODUK sahaja\n" +
     "- Jika stok = 0: beritahu habis, cadang warna lain, kalau tak nak cadang baju lain\n" +
     "- Saiz 3XL dan 4XL ada tambahan RM10\n" +
+    "- XXL = 2XL, XXXL = 3XL, XXXXL = 4XL — semua merujuk saiz yang sama\n" +
     "- Kaedah Pembayaran: Bank Transfer, QR Pay atau COD\n" +
     "- COD: Tambah RM4 kepada kos postage\n" +
     "- COD boleh untuk SEMUA kawasan termasuk Semenanjung, Sabah dan Sarawak\n" +
