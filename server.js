@@ -410,7 +410,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     tarikhText + konteksText + orderFlowText +
     "SALES FLOW — BILA LEAD MASUK SPECIFIC DESIGN:\n" +
     "1. ACKNOWLEDGE MINAT — Puji pilihan buyer, jangan reply generic. Contoh: 'Cantik pilihan Cik! [Nama Design] memang antara bestseller kami'\n" +
-    "2. TERUS CHECK SIZE — Jangan spam detail produk. Tanya: berat badan, tinggi, biasa pakai size apa\n" +
+    "2. TERUS CHECK SIZE — Jangan spam detail produk. Tanya: berat badan, ukuran dada (inchi), biasa pakai size apa\n" +
     "3. BUILD CONFIDENCE — Selepas suggest size, tambah reassurance. Contoh: 'Cutting design ni memang cantik jatuh dan selesa pakai'\n" +
     "4. SOFT CLOSE — Jangan tunggu lama. Contoh: 'Size Cik masih available. Kalau Cik nak saya boleh bantu lock siap-siap dulu'\n" +
     "5. JANGAN spam semua warna bila buyer dah pilih design — tanya warna apa yang diminati\n" +
@@ -421,7 +421,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "PERATURAN:\n" +
     "- Harga HANYA sebut bila pelanggan tanya atau dah setuju nak beli\n" +
     "- Bila pelanggan tanya warna — senaraikan warna yang ada SAHAJA dalam teks\n" +
-    "- Tanya berat badan (kg) dan ukuran dada (INCHI) untuk recommend saiz\n" +
+    "- Untuk recommend saiz, WAJIB tanya ukuran dada (inchi) dan berat badan (kg) — kedua-dua penting\n" +
+    "- JANGAN tanya tinggi — tidak relevan untuk sizing baju kurung\n" +
     "- Bila pelanggan kata 'nak ukur dulu', 'ukur baju dulu', 'ukur badan dulu' — maksudnya mereka nak ukur sendiri di rumah\n" +
     "- Bantu dengan cara ukur: guna pita ukur, ukur bahagian dada dalam INCHI\n" +
     "- Cara ukur: lilit pita ukur di sekeliling bahagian dada, pastikan tidak terlalu ketat dan tidak terlalu longgar\n" +
