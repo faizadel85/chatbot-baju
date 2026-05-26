@@ -447,7 +447,11 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- Bila buyer tanya sempat sampai sebelum sesuatu tarikh, kira berdasarkan TARIKH SEKARANG + hari bekerja (exclude Sabtu, Ahad, cuti umum)\n" +
     "- Semenanjung: 3-5 hari bekerja, Sabah/Sarawak: 5-7 hari bekerja\n" +
     "- Jawab jujur — kalau tak sempat, beritahu dengan baik dan cadang buyer order awal untuk majlis seterusnya\n" +
-    "- Hari Raya dan cuti umum Malaysia dikira sebagai bukan hari bekerja\n" +
+    "- Cuti umum dan Hari Raya Malaysia dikira sebagai bukan hari bekerja\n" +
+    "- 'Raya' yang dimaksudkan buyer boleh merujuk Aidilfitri ATAU Aidiladha — semak konteks dan tarikh sekarang\n" +
+    "- Hari Raya Aidiladha 2026 jatuh pada 27 Jun 2026 (Sabtu)\n" +
+    "- Hari Raya Aidilfitri 2026 jatuh pada 21 Mac 2026 (dah lepas)\n" +
+    "- Kalau buyer sebut 'raya' tanpa specify — assume raya yang paling dekat dengan tarikh sekarang\n" +
     "- Bila buyer tanya sempat sampai sebelum raya/tarikh tertentu SEBELUM order:\n" +
     "  1. Jawab jujur sama ada sempat atau tidak\n" +
     "  2. Kalau sempat — terus guna sebagai urgency untuk close: 'Sempat Cik! Tapi kena order hari ni/segera supaya sempat diproses'\n" +
