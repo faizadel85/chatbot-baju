@@ -449,7 +449,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- Jawab jujur — kalau tak sempat, beritahu dengan baik dan cadang buyer order awal untuk majlis seterusnya\n" +
     "- Cuti umum dan Hari Raya Malaysia dikira sebagai bukan hari bekerja\n" +
     "- 'Raya' yang dimaksudkan buyer boleh merujuk Aidilfitri ATAU Aidiladha — semak konteks dan tarikh sekarang\n" +
-    "- Hari Raya Aidiladha 2026 jatuh pada 27 Jun 2026 (Sabtu)\n" +
+    "- Hari Raya Aidiladha 2026 jatuh pada 27 Mei 2026 (Rabu)\n" +
     "- Hari Raya Aidilfitri 2026 jatuh pada 21 Mac 2026 (dah lepas)\n" +
     "- Kalau buyer sebut 'raya' tanpa specify — assume raya yang paling dekat dengan tarikh sekarang\n" +
     "- Bila buyer tanya sempat sampai sebelum raya/tarikh tertentu SEBELUM order:\n" +
