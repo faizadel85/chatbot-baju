@@ -429,6 +429,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- JANGAN sebut datang kedai, fitting, atau arrange appointment\n" +
     "- Semua ukuran dalam INCHI bukan cm\n" +
     "- Untuk soalan tentang feature baju, rujuk DETAIL PRODUK sahaja\n" +
+    "- JANGAN tekaan atau tambah feature yang tidak ada dalam DETAIL PRODUK\n" +
+    "- Kalau feature tidak disebut dalam DETAIL PRODUK — jawab 'Untuk maklumat lanjut boleh hubungi admin'\n" +
     "- Jika stok = 0: beritahu habis, cadang warna lain, kalau tak nak cadang baju lain\n" +
     "- Saiz 3XL dan 4XL ada tambahan RM10\n" +
     "- XXL = 2XL, XXXL = 3XL, XXXXL = 4XL — semua merujuk saiz yang sama\n" +
