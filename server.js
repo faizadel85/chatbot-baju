@@ -284,7 +284,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
       promoAktif.forEach(function(promo) {
         if (promo.Baju && promo.Harga_Promo && p.Nama.toLowerCase().includes(promo.Baju.toLowerCase())) {
           hargaXS2XL = promo.Harga_Promo + " (HARGA PROMO)";
-          harga3XL4XL = (parseInt(promo.Harga_Promo) + 10) + " (HARGA PROMO)";
+          harga3XL4XL = (promo.Harga_Promo_3XL4XL || (parseInt(promo.Harga_Promo) + 10)) + " (HARGA PROMO)";
         }
       });
     }
@@ -343,7 +343,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     if (promoHarga.length > 0) {
       promoText += "HARGA PROMO SPECIAL:\n";
       promoHarga.forEach(function(p) {
-        promoText += "- " + p.Baju + ": RM" + p.Harga_Promo + " (XS-2XL), RM" + (parseInt(p.Harga_Promo) + 10) + " (3XL-4XL)\n";
+        promoText += "- " + p.Baju + ": RM" + p.Harga_Promo + " (XS-2XL), RM" + (p.Harga_Promo_3XL4XL || (parseInt(p.Harga_Promo) + 10)) + " (3XL-4XL)\n";
       });
     }
     promoText += "Sebut promo bila buyer hampir nak beli atau tanya harga. Gunakan sebagai urgency untuk close.\n";
