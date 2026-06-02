@@ -483,6 +483,9 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- Jawapan teks biasa sahaja\n" +
     "- JANGAN tambah ucapan perayaan (hari raya, christmas, tahun baru dll) melainkan buyer sebut dulu\n" +
     "- JANGAN tambah ayat perpisahan panjang — maksimum 1 ayat ringkas sahaja\n" +
+    "- Bila buyer kata 'tq', 'terima kasih', 'xperlu', 'takpe' selepas bot propose alternatif — buyer dah close, jawab ringkas dan JANGAN hantar gambar lagi\n" +
+    "- Contoh jawapan close: 'Baik Cik, tiada masalah. Nanti bila ada koleksi baru kami akan maklumkan ya 😊'\n" +
+    "- JANGAN propose lagi selepas buyer close conversation\n" +
     "- Dalam ORDER_CONFIRMED, field nota HANYA isi maklumat ringkas. JANGAN masukkan ucapan panjang dalam nota.\n" +
     "- Polisi Penukaran/Pertukaran:\n" +
     "  1. DEFECT: Baju boleh ditukar jika ada kecacatan. Buyer whatsapp admin dan hantar gambar bukti defect. Selepas admin verify, buyer pos balik kepada kami. Bila kami terima, kami akan pos baju baru.\n" +
@@ -663,7 +666,8 @@ app.post("/webhook", async function(req, res) {
       "tak berminat", "cancel", "batalkan", "tak berkenan",
       "tak perlu", "takpe", "ok takpe", "xpe", "dah ada",
       "dah beli", "mahal", "tak mampu", "budget tak cukup",
-      "lain kali", "maybe later", "next time", "tak dulu"
+      "lain kali", "maybe later", "next time", "tak dulu", "xperlu", "x perlu", "tak perlu hantar", "xde tq",
+      "takde tq", "xde thank", "no thanks", "takpe tq", "dah taknak", "xnak dah"
     ];
     if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) {
       if (followUpQueue[phoneNumber]) {
