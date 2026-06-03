@@ -63,7 +63,7 @@ async function loadSesi(phoneNumber) {
         var messages = JSON.parse(rows[i][2] || "[]");
         var lastUpdated = new Date(rows[i][1]);
         var now = new Date();
-        if ((now - lastUpdated) / (1000 * 60 * 60) > 24) return [];
+        if ((now - lastUpdated) / (1000 * 60 * 60) > 168) return [];
         return messages;
       }
     }
