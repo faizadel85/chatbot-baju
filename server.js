@@ -180,6 +180,7 @@ setInterval(async function() {
   for (var phone in followUpQueue) {
     var q = followUpQueue[phone];
     if (q.done) continue;
+    if (global.stopList && global.stopList[phone]) continue;
     if (q.stage === "browsing") {
       if (!q.sent1 && !q.hasJanji && (now - q.lastReply) >= 60 * 60 * 1000) { await hantarMesej(phone, MSG_STAGE1); followUpQueue[phone].sent1 = true; console.log("Stage 1 sent to " + phone); }
       if (q.hasJanji && !q.sent1b && q.janjiAt && (now - q.janjiAt) >= 3 * 60 * 60 * 1000) {
