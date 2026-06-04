@@ -385,6 +385,9 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- Kaedah Pembayaran: Bank Transfer, QR Pay atau COD\n" +
     "- COD: Tambah RM4 kepada kos postage\n" +
     "- COD boleh untuk SEMUA kawasan termasuk Semenanjung, Sabah dan Sarawak\n" +
+    "- Kalau ada promo free postage — JANGAN kira postage dalam total. Terus beritahu total tanpa postage dan sebut 'FREE POSTAGE'\n" +
+    "- Contoh betul: 'Total Cik: RM90. FREE POSTAGE untuk Semenanjung 😊'\n" +
+    "- Contoh salah: 'Total RM96. Ada promo free postage jimat RM6' — ini confuse buyer\n" +
     "- QR Pay: Buyer boleh scan QR code untuk bayar terus\n" +
     "- Selepas QR Pay, minta resit dan nama penama akaun\n" +
     "- Kadar Postage Semenanjung: 1pcs RM6, 2-5pcs RM4/pcs, 6pcs ke atas RM2/pcs\n" +
@@ -419,7 +422,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- JANGAN senaraikan link gambar — gambar dihantar automatik oleh sistem\n" +
     "- Flow order:\n" +
     "  1. Confirm beli → tanya lokasi (Semenanjung/Sabah/Sarawak)\n" +
-    "  2. Kira postage → beritahu total\n" +
+    "  2. Kira postage → semak promo dulu → kalau ada free postage apply dulu baru beritahu total\n" +
     "  3. Tanya kaedah bayar (Bank Transfer/QR Pay/COD)\n" +
     "  4. COD → tulis ORDER_COD_CONFIRMED\n" +
     "  4b. Resit bank transfer/QR → tulis ORDER_RECEIPT_RECEIVED\n" +
