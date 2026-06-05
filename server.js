@@ -442,12 +442,17 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- Contoh jawapan close: 'Baik Cik, tiada masalah. Nanti bila ada koleksi baru kami akan maklumkan ya 😊'\n" +
     "- JANGAN propose lagi selepas buyer close conversation\n" +
     "- Dalam ORDER_CONFIRMED, field nota HANYA isi maklumat ringkas. JANGAN masukkan ucapan panjang dalam nota.\n" +
+    "- Polisi Refund:\n" +
+    "  Bila buyer minta refund — jawab mesra, inform admin akan dihubungi untuk proses\n" +
+    "  Contoh: 'Baik Cik, saya faham. Saya akan maklumkan kepada admin kami untuk proses refund Cik segera. Admin akan hubungi Cik tidak lama lagi 😊'\n" +
+    "  JANGAN minta buyer whatsapp admin sendiri\n" +
+    "  JANGAN janji refund akan diluluskan — hanya inform admin akan proses\n" +
     "- Polisi Penukaran/Pertukaran:\n" +
-    "  1. DEFECT: Baju boleh ditukar jika ada kecacatan. Buyer whatsapp admin dan hantar gambar bukti defect. Selepas admin verify, buyer pos balik kepada kami. Bila kami terima, kami akan pos baju baru.\n" +
-    "  2. SALAH SAIZ: Buyer boleh tukar saiz dengan whatsapp admin. Buyer perlu pos balik baju dan buat bayaran kos pos baju baru selepas kami terima baju yang tersalah saiz.\n" +
+    "  1. DEFECT: Bila buyer report defect — jawab mesra dan inform admin akan dimaklumkan. Contoh: 'Maaf Cik atas kesulitan ini. Saya sudah maklumkan kepada admin        kami dan admin akan hubungi Cik tidak lama lagi untuk proses penukaran 😊'\n" +
+    "  2. SALAH SAIZ: Bila buyer minta tukar saiz — jawab mesra dan inform admin akan dimaklumkan. Contoh: 'Baik Cik, saya sudah maklumkan kepada admin kami. Admin        akan hubungi Cik segera untuk bantu proses penukaran saiz 😊'\n" +
     "  3. TIADA pertukaran untuk sebab lain selain defect atau salah saiz.\n" +
-    "  4. Untuk kedua-dua kes, minta buyer hubungi admin terus untuk proses lanjut.";
-}
+    "  4. JANGAN minta buyer hubungi admin sendiri — admin yang akan hubungi buyer.";
+  }
 
 app.get("/", function(req, res) { res.send("Bot ADEL Adyana OK"); });
 
@@ -514,6 +519,17 @@ app.post("/webhook", async function(req, res) {
 
     var katatukar = ["nak tukar","nk tukar","tukar alamat","tukar baju","tukar saiz","tukar size","tukar warna","ubah alamat","ubah baju","ubah saiz","ubah size","ubah warna","salah alamat","salah saiz","salah size","salah baju","salah warna","boleh tukar","boleh ubah","cancel","batalkan"];
     if (katatukar.some(function(k) { return text.toLowerCase().includes(k); })) await hantarMesej("601123726341", "PERHATIAN - REQUEST PENUKARAN!\n\nNo Tel: " + phoneNumber + "\nMesej: " + text + "\n\nSila semak segera!");
+
+// ===== DETECT REFUND =====
+    var kataRefund = ["refund", "pulangkan duit", "pulang duit", "bayar balik", "kembalikan wang", "nak duit balik", "minta refund", "cancel refund"];
+    if (kataRefund.some(function(k) { return text.toLowerCase().includes(k); })) {
+      await hantarMesej("601123726341", "PERHATIAN - REQUEST REFUND!\n\nNo Tel: " + phoneNumber + "\nMesej: " + text + "\n\nSila semak segera!");
+    }
+
+    var kataDefect = ["defect", "cacat", "rosak", "koyak", "lubang", "jahitan longgar", "salah saiz", "salah size", "tersilap saiz", "tersilap size"];
+    if (kataDefect.some(function(k) { return text.toLowerCase().includes(k); })) {
+      await hantarMesej("601123726341", "PERHATIAN - REQUEST PENUKARAN/DEFECT!\n\nNo Tel: " + phoneNumber + "\nMesej: " + text + "\n\nSila hubungi buyer segera!");
+    }
 
     var kataTolak = ["tak nak","taknak","xnak","tak jadi","takjadi","tak minat","takminat","x minat","tidak berminat","tak berminat","cancel","batalkan","tak berkenan","tak perlu","takpe","ok takpe","xpe","dah ada","dah beli","mahal","tak mampu","budget tak cukup","lain kali","maybe later","next time","tak dulu","xperlu","x perlu","tak perlu hantar","xde tq","takde tq","no thanks","takpe tq","dah taknak","xnak dah"];
     if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) { if (followUpQueue[phoneNumber]) { followUpQueue[phoneNumber].done = true; followUpQueue[phoneNumber].sent1 = true; followUpQueue[phoneNumber].sent2 = true; console.log("Buyer tolak — follow up distop: " + phoneNumber); } }
