@@ -34,6 +34,64 @@ async function getSheetDataCached(sheetName) {
   return data;
 }
 
+// ===== STOP LIST PERSISTENT =====
+global.stopList = {};
+
+async function loadStopList() {
+  try {
+    var auth = await getGoogleAuth();
+    var sheets = google.sheets({ version: "v4", auth });
+    var result = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: "StopList!A:A" });
+    var rows = result.data.values || [];
+    global.stopList = {};
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i][0] && rows[i][0].trim()) {
+        global.stopList[rows[i][0].trim()] = true;
+      }
+    }
+    console.log("StopList loaded:", Object.keys(global.stopList).length, "nombor");
+  } catch (err) { console.error("Error load stop list:", err.message); }
+}
+
+async function simpanStopList(phoneNumber) {
+  try {
+    var auth = await getGoogleAuth();
+    var sheets = google.sheets({ version: "v4", auth });
+    var result = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: "StopList!A:A" });
+    var rows = result.data.values || [];
+    // Semak dah ada ke
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i][0] === phoneNumber) return; // Dah ada, tak perlu tambah
+    }
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID, range: "StopList!A:A",
+      valueInputOption: "RAW", resource: { values: [[phoneNumber]] }
+    });
+    console.log("StopList: simpan " + phoneNumber);
+  } catch (err) { console.error("Error simpan stop list:", err.message); }
+}
+
+async function buangStopList(phoneNumber) {
+  try {
+    var auth = await getGoogleAuth();
+    var sheets = google.sheets({ version: "v4", auth });
+    var result = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: "StopList!A:A" });
+    var rows = result.data.values || [];
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i][0] === phoneNumber) {
+        await sheets.spreadsheets.values.clear({
+          spreadsheetId: SHEET_ID, range: "StopList!A" + (i + 1)
+        });
+        console.log("StopList: buang " + phoneNumber);
+        return;
+      }
+    }
+  } catch (err) { console.error("Error buang stop list:", err.message); }
+}
+
+// Load stop list masa server start
+loadStopList();
+
 async function simpanSesi(phoneNumber, messages) {
   try {
     var auth = await getGoogleAuth();
@@ -240,7 +298,6 @@ setInterval(async function() {
       if (status === "Packed" && notifiedPacked !== "Yes") {
         await hantarMesej(noTel, "Assalamualaikum Cik! 😊\n\nOrder Cik sedang dipacking sekarang.\nKami akan maklumkan bila dah dihantar ya ❤️");
         await sheets.spreadsheets.values.update({ spreadsheetId: SHEET_ID, range: "Orders!P" + (i + 1), valueInputOption: "RAW", resource: { values: [["Yes"]] } });
-        console.log("Notif Packed dihantar ke: " + noTel);
       }
       if (status === "Shipped" && notifiedShipped !== "Yes" && trackingNo) {
         var courierUrl = "";
@@ -250,7 +307,6 @@ setInterval(async function() {
         else if (courier.toLowerCase().includes("gdex")) courierUrl = "www.gdexpress.com";
         await hantarMesej(noTel, "Assalamualaikum Cik! 😊\n\nOrder Cik telah dihantar!\nCourier: " + courier + "\nNo Tracking: " + trackingNo + "\n\n" + (courierUrl ? "Track di: " + courierUrl + "\n" : "") + "Anggaran tiba: 3-5 hari bekerja ❤️");
         await sheets.spreadsheets.values.update({ spreadsheetId: SHEET_ID, range: "Orders!Q" + (i + 1), valueInputOption: "RAW", resource: { values: [["Yes"]] } });
-        console.log("Notif Shipped dihantar ke: " + noTel);
       }
     }
   } catch (err) { console.error("Error check order status:", err); }
@@ -278,7 +334,6 @@ async function getSheetData(sheetName) {
 function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamOrderFlow, tarikhSekarang, promoAktif) {
   var senaraiProduk = products.map(function(p) {
     if (!p || !p.Nama) return "";
-    // ===== OVERRIDE HARGA DENGAN PROMO =====
     var hargaXS2XL = p.Harga_XS_2XL;
     var harga3XL4XL = p.Harga_3XL_4XL;
     if (promoAktif && promoAktif.length > 0) {
@@ -289,12 +344,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
         }
       });
     }
-    return p.Nama + " | Warna: " + p.Warna +
-      " | Harga XS-2XL: RM" + hargaXS2XL +
-      " | Harga 3XL-4XL: RM" + harga3XL4XL + " (ADD ON RM10)" +
-      " | Stok: XS=" + p.Stock_XS + " S=" + p.Stock_S + " M=" + p.Stock_M +
-      " L=" + p.Stock_L + " XL=" + p.Stock_XL + " 2XL=" + p.Stock_2XL +
-      " 3XL=" + p.Stock_3XL + " 4XL=" + p.Stock_4XL;
+    return p.Nama + " | Warna: " + p.Warna + " | Harga XS-2XL: RM" + hargaXS2XL + " | Harga 3XL-4XL: RM" + harga3XL4XL + " (ADD ON RM10)" + " | Stok: XS=" + p.Stock_XS + " S=" + p.Stock_S + " M=" + p.Stock_M + " L=" + p.Stock_L + " XL=" + p.Stock_XL + " 2XL=" + p.Stock_2XL + " 3XL=" + p.Stock_3XL + " 4XL=" + p.Stock_4XL;
   }).filter(Boolean).join("\n");
 
   var sizeInfo = {};
@@ -323,29 +373,21 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
   var orderFlowText = "";
   if (dalamOrderFlow) orderFlowText = "\nSTATUS ORDER: Buyer sudah memilih baju dan sedang dalam proses order. JANGAN cadang atau propose baju lain. Bila buyer tanya tentang material atau ciri-ciri baju — jawab info baju yang dipilih sahaja. Hanya propose baju lain kalau buyer kata nak tukar baju atau tak jadi beli.\n";
 
-  // ===== PROMO TEXT =====
   var promoText = "";
   if (promoAktif && promoAktif.length > 0) {
     promoText = "\nPROMO SEMASA:\n";
-    // Gift promo
     var promoGift = promoAktif.filter(function(p) { return p.Gift && p.Gift.trim(); });
     if (promoGift.length > 0) {
       var giftsDisebut = [];
       promoGift.forEach(function(p) {
         var key = p.Nama_Promo + "|" + p.Gift;
-        if (giftsDisebut.indexOf(key) === -1) {
-          giftsDisebut.push(key);
-          promoText += "- " + p.Nama_Promo + ": " + (p.Syarat ? p.Syarat + " → " : "") + "dapat " + p.Gift + "\n";
-        }
+        if (giftsDisebut.indexOf(key) === -1) { giftsDisebut.push(key); promoText += "- " + p.Nama_Promo + ": " + (p.Syarat ? p.Syarat + " → " : "") + "dapat " + p.Gift + "\n"; }
       });
     }
-    // Harga promo
     var promoHarga = promoAktif.filter(function(p) { return p.Baju && p.Harga_Promo; });
     if (promoHarga.length > 0) {
       promoText += "HARGA PROMO SPECIAL:\n";
-      promoHarga.forEach(function(p) {
-        promoText += "- " + p.Baju + ": RM" + p.Harga_Promo + " (XS-2XL), RM" + (p.Harga_Promo_3XL4XL || (parseInt(p.Harga_Promo) + 10)) + " (3XL-4XL)\n";
-      });
+      promoHarga.forEach(function(p) { promoText += "- " + p.Baju + ": RM" + p.Harga_Promo + " (XS-2XL), RM" + (p.Harga_Promo_3XL4XL || (parseInt(p.Harga_Promo) + 10)) + " (3XL-4XL)\n"; });
     }
     promoText += "Sebut promo bila buyer hampir nak beli atau tanya harga. Gunakan sebagai urgency untuk close.\n";
   }
@@ -448,11 +490,11 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "  JANGAN minta buyer whatsapp admin sendiri\n" +
     "  JANGAN janji refund akan diluluskan — hanya inform admin akan proses\n" +
     "- Polisi Penukaran/Pertukaran:\n" +
-    "  1. DEFECT: Bila buyer report defect — jawab mesra dan inform admin akan dimaklumkan. Contoh: 'Maaf Cik atas kesulitan ini. Saya sudah maklumkan kepada admin        kami dan admin akan hubungi Cik tidak lama lagi untuk proses penukaran 😊'\n" +
-    "  2. SALAH SAIZ: Bila buyer minta tukar saiz — jawab mesra dan inform admin akan dimaklumkan. Contoh: 'Baik Cik, saya sudah maklumkan kepada admin kami. Admin        akan hubungi Cik segera untuk bantu proses penukaran saiz 😊'\n" +
+    "  1. DEFECT: Bila buyer report defect — jawab mesra dan inform admin akan dimaklumkan. Contoh: 'Maaf Cik atas kesulitan ini. Saya sudah maklumkan kepada admin kami dan admin akan hubungi Cik tidak lama lagi untuk proses penukaran 😊'\n" +
+    "  2. SALAH SAIZ: Bila buyer minta tukar saiz — jawab mesra dan inform admin akan dimaklumkan. Contoh: 'Baik Cik, saya sudah maklumkan kepada admin kami. Admin akan hubungi Cik segera untuk bantu proses penukaran saiz 😊'\n" +
     "  3. TIADA pertukaran untuk sebab lain selain defect atau salah saiz.\n" +
     "  4. JANGAN minta buyer hubungi admin sendiri — admin yang akan hubungi buyer.";
-  }
+}
 
 app.get("/", function(req, res) { res.send("Bot ADEL Adyana OK"); });
 
@@ -494,7 +536,6 @@ app.post("/webhook", async function(req, res) {
         var base64Image = Buffer.from(mediaData.data).toString("base64"); var mediaType = mediaData.headers["content-type"] || "image/jpeg";
         var visionResponse = await claude.messages.create({ model: "claude-sonnet-4-5", max_tokens: 300, messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: mediaType, data: base64Image } }, { type: "text", text: "Ini gambar dari buyer. Kalau ada alamat penghantaran, extract dan tulis semula dalam teks biasa. Kalau ini resit pembayaran, tulis 'RESIT'. Kalau bukan alamat atau resit, tulis 'TIADA'." }] }] });
         var extractedText = visionResponse.content[0].text.trim();
-        console.log("Vision extract:", extractedText);
         if (extractedText === "TIADA") { return res.sendStatus(200); }
         else if (extractedText === "RESIT") {
           if (followUpQueue[phoneNumber] && followUpQueue[phoneNumber].stage === "ordered") { followUpQueue[phoneNumber].stage = "paid"; followUpQueue[phoneNumber].done = true; followUpQueue[phoneNumber].sent3a = true; followUpQueue[phoneNumber].sent3b = true; await hantarMesej(phoneNumber, "Terima kasih Cik! Resit dah kami terima. Boleh Cik berikan nama penuh dan alamat penghantaran? 😊"); }
@@ -505,11 +546,33 @@ app.post("/webhook", async function(req, res) {
 
     if (!from || !text) return res.sendStatus(200);
 
-    if (!global.stopList) global.stopList = {};
+    // ===== ADMIN COMMANDS =====
     if (phoneNumber === "601123726341") {
-      if (text.startsWith("/stop ")) { var stopNum = text.replace("/stop ", "").trim(); global.stopList[stopNum] = true; await hantarMesej(phoneNumber, "Bot distop untuk: " + stopNum + " ✅"); return res.sendStatus(200); }
-      if (text.startsWith("/start ")) { var startNum = text.replace("/start ", "").trim(); delete global.stopList[startNum]; await hantarMesej(phoneNumber, "Bot diaktif semula untuk: " + startNum + " ✅"); return res.sendStatus(200); }
-      if (text.startsWith("/inject ")) { var parts = text.replace("/inject ", "").trim(); var spaceIdx = parts.indexOf(" "); var targetNum = parts.substring(0, spaceIdx); var injectText = parts.substring(spaceIdx + 1); if (!sesi[targetNum]) sesi[targetNum] = []; sesi[targetNum].push({ role: "user", content: injectText }); await simpanSesi(targetNum, sesi[targetNum]); await hantarMesej(phoneNumber, "Inject berjaya untuk: " + targetNum + " ✅"); return res.sendStatus(200); }
+      if (text.startsWith("/stop ")) {
+        var stopNum = text.replace("/stop ", "").trim();
+        global.stopList[stopNum] = true;
+        await simpanStopList(stopNum); // Simpan ke sheet
+        await hantarMesej(phoneNumber, "Bot distop untuk: " + stopNum + " ✅");
+        return res.sendStatus(200);
+      }
+      if (text.startsWith("/start ")) {
+        var startNum = text.replace("/start ", "").trim();
+        delete global.stopList[startNum];
+        await buangStopList(startNum); // Buang dari sheet
+        await hantarMesej(phoneNumber, "Bot diaktif semula untuk: " + startNum + " ✅");
+        return res.sendStatus(200);
+      }
+      if (text.startsWith("/inject ")) {
+        var parts = text.replace("/inject ", "").trim();
+        var spaceIdx = parts.indexOf(" ");
+        var targetNum = parts.substring(0, spaceIdx);
+        var injectText = parts.substring(spaceIdx + 1);
+        if (!sesi[targetNum]) sesi[targetNum] = [];
+        sesi[targetNum].push({ role: "user", content: injectText });
+        await simpanSesi(targetNum, sesi[targetNum]);
+        await hantarMesej(phoneNumber, "Inject berjaya untuk: " + targetNum + " ✅");
+        return res.sendStatus(200);
+      }
     }
     if (global.stopList[phoneNumber]) { console.log("Bot distop untuk: " + phoneNumber); return res.sendStatus(200); }
 
@@ -520,19 +583,14 @@ app.post("/webhook", async function(req, res) {
     var katatukar = ["nak tukar","nk tukar","tukar alamat","tukar baju","tukar saiz","tukar size","tukar warna","ubah alamat","ubah baju","ubah saiz","ubah size","ubah warna","salah alamat","salah saiz","salah size","salah baju","salah warna","boleh tukar","boleh ubah","cancel","batalkan"];
     if (katatukar.some(function(k) { return text.toLowerCase().includes(k); })) await hantarMesej("601123726341", "PERHATIAN - REQUEST PENUKARAN!\n\nNo Tel: " + phoneNumber + "\nMesej: " + text + "\n\nSila semak segera!");
 
-// ===== DETECT REFUND =====
-    var kataRefund = ["refund", "pulangkan duit", "pulang duit", "bayar balik", "kembalikan wang", "nak duit balik", "minta refund", "cancel refund"];
-    if (kataRefund.some(function(k) { return text.toLowerCase().includes(k); })) {
-      await hantarMesej("601123726341", "PERHATIAN - REQUEST REFUND!\n\nNo Tel: " + phoneNumber + "\nMesej: " + text + "\n\nSila semak segera!");
-    }
+    var kataRefund = ["refund","pulangkan duit","pulang duit","bayar balik","kembalikan wang","nak duit balik","minta refund","cancel refund"];
+    if (kataRefund.some(function(k) { return text.toLowerCase().includes(k); })) await hantarMesej("601123726341", "PERHATIAN - REQUEST REFUND!\n\nNo Tel: " + phoneNumber + "\nMesej: " + text + "\n\nSila semak segera!");
 
-    var kataDefect = ["defect", "cacat", "rosak", "koyak", "lubang", "jahitan longgar", "salah saiz", "salah size", "tersilap saiz", "tersilap size"];
-    if (kataDefect.some(function(k) { return text.toLowerCase().includes(k); })) {
-      await hantarMesej("601123726341", "PERHATIAN - REQUEST PENUKARAN/DEFECT!\n\nNo Tel: " + phoneNumber + "\nMesej: " + text + "\n\nSila hubungi buyer segera!");
-    }
+    var kataDefect = ["defect","cacat","rosak","koyak","lubang","jahitan longgar","salah saiz","salah size","tersilap saiz","tersilap size"];
+    if (kataDefect.some(function(k) { return text.toLowerCase().includes(k); })) await hantarMesej("601123726341", "PERHATIAN - REQUEST PENUKARAN/DEFECT!\n\nNo Tel: " + phoneNumber + "\nMesej: " + text + "\n\nSila hubungi buyer segera!");
 
     var kataTolak = ["tak nak","taknak","xnak","tak jadi","takjadi","tak minat","takminat","x minat","tidak berminat","tak berminat","cancel","batalkan","tak berkenan","tak perlu","takpe","ok takpe","xpe","dah ada","dah beli","mahal","tak mampu","budget tak cukup","lain kali","maybe later","next time","tak dulu","xperlu","x perlu","tak perlu hantar","xde tq","takde tq","no thanks","takpe tq","dah taknak","xnak dah"];
-    if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) { if (followUpQueue[phoneNumber]) { followUpQueue[phoneNumber].done = true; followUpQueue[phoneNumber].sent1 = true; followUpQueue[phoneNumber].sent2 = true; console.log("Buyer tolak — follow up distop: " + phoneNumber); } }
+    if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) { if (followUpQueue[phoneNumber]) { followUpQueue[phoneNumber].done = true; followUpQueue[phoneNumber].sent1 = true; followUpQueue[phoneNumber].sent2 = true; } }
 
     if (!followUpQueue[phoneNumber]) {
       followUpQueue[phoneNumber] = { stage: "browsing", lastReply: Date.now(), sent1: false, sent1b: false, sent2: false, sent3a: false, sent3b: false, hasJanji: false, lastContext: "", janjiAt: null, orderedAt: null, done: false, produk: "", saiz: "", warna: "" };
@@ -567,16 +625,13 @@ app.post("/webhook", async function(req, res) {
 
     var historyLower = history.toLowerCase();
     var dalamOrderFlow = historyLower.includes("postage") || historyLower.includes("total") || historyLower.includes("bank transfer") || historyLower.includes("cod") || historyLower.includes("nak beli") || historyLower.includes("order");
-
     var tarikhSekarang = new Date().toLocaleDateString("ms-MY", { timeZone: "Asia/Kuala_Lumpur", weekday: "long", year: "numeric", month: "long", day: "numeric" });
-
-    // ===== BUILD SYSTEM PROMPT DENGAN PROMO =====
     var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamOrderFlow, tarikhSekarang, promoAktif);
 
     var kataJanji = ["kejap","sat","jap","sekejap","nanti","later","dengan anak","dengan suami","dengan isteri","dengan husband","dengan wife","dengan family","dengan mak","dengan ayah","balik rumah","balik kerja","petang","malam","esok","insyaallah","mlm","mlm nanti","malam nanti","petang nanti","esok pagi","kejap lagi","sekejap lagi","nanti ye","nanti saya"];
     if (kataJanji.some(function(k) { return text.toLowerCase().includes(k); })) {
       var adaCODHistory = historyLower.includes("cod") || historyLower.includes("cash on delivery") || historyLower.includes("order_cod");
-      if (followUpQueue[phoneNumber].stage === "browsing" && adaCODHistory) { followUpQueue[phoneNumber].stage = "ordered"; followUpQueue[phoneNumber].orderedAt = Date.now(); followUpQueue[phoneNumber].sent3a = false; followUpQueue[phoneNumber].sent3b = false; followUpQueue[phoneNumber].done = false; console.log("COD history detected — stage tukar ordered: " + phoneNumber); }
+      if (followUpQueue[phoneNumber].stage === "browsing" && adaCODHistory) { followUpQueue[phoneNumber].stage = "ordered"; followUpQueue[phoneNumber].orderedAt = Date.now(); followUpQueue[phoneNumber].sent3a = false; followUpQueue[phoneNumber].sent3b = false; followUpQueue[phoneNumber].done = false; }
       else if (followUpQueue[phoneNumber].stage === "browsing") { followUpQueue[phoneNumber].hasJanji = true; followUpQueue[phoneNumber].lastContext = text; followUpQueue[phoneNumber].janjiAt = Date.now(); }
     }
 
@@ -638,7 +693,6 @@ app.post("/webhook", async function(req, res) {
       jawapan = jawapan.replace("ORDER_COD_CONFIRMED", "").trim();
       var orderDetails = await extractOrderDetails(history, products);
       followUpQueue[phoneNumber].produk = orderDetails.produk; followUpQueue[phoneNumber].saiz = orderDetails.saiz; followUpQueue[phoneNumber].warna = orderDetails.warna;
-      console.log("COD confirmed — order details:", orderDetails);
     }
     if (jawapan.includes("ORDER_RECEIPT_RECEIVED")) { followUpQueue[phoneNumber].stage = "paid"; followUpQueue[phoneNumber].done = true; jawapan = jawapan.replace("ORDER_RECEIPT_RECEIVED", "").trim(); }
     console.log("Jawapan Claude:", jawapan);
