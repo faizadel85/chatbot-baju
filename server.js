@@ -389,6 +389,11 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
       promoText += "HARGA PROMO SPECIAL:\n";
       promoHarga.forEach(function(p) { promoText += "- " + p.Baju + ": RM" + p.Harga_Promo + " (XS-2XL), RM" + (p.Harga_Promo_3XL4XL || (parseInt(p.Harga_Promo) + 10)) + " (3XL-4XL)\n"; });
     }
+    promoGift.forEach(function(p) {
+      if (p.Gambar_Gift_URL) {
+        promoText += "  (Gambar " + p.Gift + " boleh ditunjukkan bila buyer tanya — sistem akan hantar automatik)\n";
+      }
+    });
     promoText += "Sebut promo bila buyer hampir nak beli atau tanya harga. Gunakan sebagai urgency untuk close.\n";
   }
 
@@ -635,6 +640,21 @@ app.post("/webhook", async function(req, res) {
       else if (followUpQueue[phoneNumber].stage === "browsing") { followUpQueue[phoneNumber].hasJanji = true; followUpQueue[phoneNumber].lastContext = text; followUpQueue[phoneNumber].janjiAt = Date.now(); }
     }
 
+     // ===== DETECT GAMBAR FREE GIFT =====
+     var kataGambarGift = ["gambar brooch", "tgk brooch", "tengok brooch", "brooch mcm mana", "brooch macam mana", "gift tu", "free gift tu", "hadiah tu"];
+     if (kataGambarGift.some(function(k) { return textLower.includes(k); })) {
+       var promoGambar = promoAktif.find(function(p) { return p.Gambar_Gift_URL && p.Gambar_Gift_URL.trim(); });
+       if (promoGambar) {
+       var giftJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
+       giftJawapan = sanitizeJawapan(giftJawapan);
+       sesi[phoneNumber].push({ role: "assistant", content: giftJawapan });
+       await simpanSesi(phoneNumber, sesi[phoneNumber]);
+       await hantarMesej(phoneNumber, giftJawapan);
+       await new Promise(function(r) { setTimeout(r, 1000); });
+       await hantarGambar(phoneNumber, "Ini brooch free gift untuk Cik 😊", promoGambar.Gambar_Gift_URL);
+       return res.sendStatus(200);
+     }
+   }
     var kataGambarReal = ["close up","closeup","real","bukan ai","bukan gambar ai","gambar sebenar","gambar real","material kain","texture","close up kain","gambar betul"];
     if (kataGambarReal.some(function(k) { return textLower.includes(k); })) {
       var bajuSkrg = bajuKonteks || getBajuTerakhir(history, products); var warnaSkrg = null;
