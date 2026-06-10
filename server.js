@@ -374,7 +374,16 @@ async function getSheetData(sheetName) {
     var rows = [];
     for (var i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
-      var values = lines[i].split(",").map(function(v) { return v.replace(/"/g, "").trim(); });
+      var values = [];
+      var line = lines[i];
+      var current = "";
+      var inQuotes = false;
+      for (var c = 0; c < line.length; c++) {
+        if (line[c] === '"') { inQuotes = !inQuotes; }
+        else if (line[c] === "," && !inQuotes) { values.push(current.trim()); current = ""; }
+        else { current += line[c]; }
+      }
+      values.push(current.trim());
       var row = {};
       for (var j = 0; j < headers.length; j++) { row[headers[j]] = values[j] || ""; }
       if (sheetName === "Sheet1" && !row.Nama) continue;
