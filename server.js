@@ -45,9 +45,7 @@ async function loadStopList() {
     var rows = result.data.values || [];
     global.stopList = {};
     for (var i = 1; i < rows.length; i++) {
-      if (rows[i][0] && rows[i][0].trim()) {
-        global.stopList[rows[i][0].trim()] = true;
-      }
+      if (rows[i][0] && rows[i][0].trim()) global.stopList[rows[i][0].trim()] = true;
     }
     console.log("StopList loaded:", Object.keys(global.stopList).length, "nombor");
   } catch (err) { console.error("Error load stop list:", err.message); }
@@ -59,14 +57,8 @@ async function simpanStopList(phoneNumber) {
     var sheets = google.sheets({ version: "v4", auth });
     var result = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: "StopList!A:A" });
     var rows = result.data.values || [];
-    // Semak dah ada ke
-    for (var i = 1; i < rows.length; i++) {
-      if (rows[i][0] === phoneNumber) return; // Dah ada, tak perlu tambah
-    }
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: SHEET_ID, range: "StopList!A:A",
-      valueInputOption: "RAW", resource: { values: [[phoneNumber]] }
-    });
+    for (var i = 1; i < rows.length; i++) { if (rows[i][0] === phoneNumber) return; }
+    await sheets.spreadsheets.values.append({ spreadsheetId: SHEET_ID, range: "StopList!A:A", valueInputOption: "RAW", resource: { values: [[phoneNumber]] } });
     console.log("StopList: simpan " + phoneNumber);
   } catch (err) { console.error("Error simpan stop list:", err.message); }
 }
@@ -79,17 +71,13 @@ async function buangStopList(phoneNumber) {
     var rows = result.data.values || [];
     for (var i = 1; i < rows.length; i++) {
       if (rows[i][0] === phoneNumber) {
-        await sheets.spreadsheets.values.clear({
-          spreadsheetId: SHEET_ID, range: "StopList!A" + (i + 1)
-        });
-        console.log("StopList: buang " + phoneNumber);
-        return;
+        await sheets.spreadsheets.values.clear({ spreadsheetId: SHEET_ID, range: "StopList!A" + (i + 1) });
+        console.log("StopList: buang " + phoneNumber); return;
       }
     }
   } catch (err) { console.error("Error buang stop list:", err.message); }
 }
 
-// Load stop list masa server start
 loadStopList();
 
 async function simpanSesi(phoneNumber, messages) {
@@ -210,28 +198,32 @@ async function claudeDecideGambar(jawapan, history, products, katalog, sizeChart
   } catch (err) { console.error("Error claudeDecideGambar:", err.message); return []; }
 }
 
+// ===== EXTRACT ORDER DETAILS (TERMASUK KAEDAH BAYAR) =====
 async function extractOrderDetails(history, products) {
   try {
     var uniqueNama = [];
     products.forEach(function(p) { if (!p || !p.Nama) return; if (uniqueNama.indexOf(p.Nama) === -1) uniqueNama.push(p.Nama); });
-    var extractPrompt = "Dari conversation ini, extract maklumat order yang buyer pilih.\n\nHistory:\n" + history.slice(-2000) + "\n\nProduk yang ada: " + uniqueNama.join(", ") + "\n\nJawab HANYA dalam format ini (kosongkan kalau tak ada info):\nPRODUK:[nama produk]\nSAIZ:[saiz pilihan]\nWARNA:[warna pilihan]\n\nJANGAN tulis apa-apa lain.";
-    var result = await callClaude(extractPrompt, [{ role: "user", content: "Extract order details." }], 100);
-    var produk = ""; var saiz = ""; var warna = "";
+    var extractPrompt = "Dari conversation ini, extract maklumat order yang buyer pilih.\n\nHistory:\n" + history.slice(-2000) + "\n\nProduk yang ada: " + uniqueNama.join(", ") + "\n\nJawab HANYA dalam format ini (kosongkan kalau tak ada info):\nPRODUK:[nama produk]\nSAIZ:[saiz pilihan]\nWARNA:[warna pilihan]\nKAEDAH:[COD atau Bank Transfer atau QR Pay]\n\nJANGAN tulis apa-apa lain.";
+    var result = await callClaude(extractPrompt, [{ role: "user", content: "Extract order details." }], 150);
+    var produk = ""; var saiz = ""; var warna = ""; var kaedah = "";
     result.split("\n").forEach(function(line) {
       line = line.trim();
       if (line.startsWith("PRODUK:")) produk = line.replace("PRODUK:", "").trim();
       if (line.startsWith("SAIZ:")) saiz = line.replace("SAIZ:", "").trim();
       if (line.startsWith("WARNA:")) warna = line.replace("WARNA:", "").trim();
+      if (line.startsWith("KAEDAH:")) kaedah = line.replace("KAEDAH:", "").trim();
     });
-    return { produk: produk, saiz: saiz, warna: warna };
-  } catch (err) { console.error("Error extract order details:", err.message); return { produk: "", saiz: "", warna: "" }; }
+    return { produk: produk, saiz: saiz, warna: warna, kaedah: kaedah };
+  } catch (err) { console.error("Error extract order details:", err.message); return { produk: "", saiz: "", warna: "", kaedah: "" }; }
 }
 
 var followUpQueue = {};
 var MSG_STAGE1 = "Assalamualaikum 🫶🏻 Cik cari size dan warna apa ya?\n\nAtau nak saya bantu dapatkan size yg sesuai untuk Cik?";
 var MSG_STAGE2 = "Assalamualaikum! Semoga Cik dalam keadaan baik & semoga urusan kita sama² dipermudahkan hari ini 😊\n\nCik ada tekan link iklan saya dari FB/IG. Saya sangat-sangat hargai respon Cik 💕\n\nCik tengah cari warna dan size apa ya? Ada apa boleh saya bantu?";
 var MSG_STAGE3A = "Salam Cik 😊\n\nSaya nak follow-up order Cik tadi ya. Untuk proceed packing, boleh send resit payment bila sempat 🙏\n\nStock design ni tengah laju keluar hari ni 😊";
+var MSG_STAGE3A_COD = "Salam Cik 😊\n\nSaya nak follow-up order COD Cik tadi ya. Order Cik masih dalam proses.\n\nBoleh Cik confirm alamat penghantaran untuk kami proses segera? 🙏";
 var MSG_STAGE3B = "Salam Cik 🌷\n\nOrder Cik masih available ya buat masa sekarang 😊\n\nBila payment dah settle nanti boleh terus send resit dekat saya supaya team boleh reserve & packing cepat ❤️";
+var MSG_STAGE3B_COD = "Salam Cik 🌷\n\nOrder COD Cik masih available ya buat masa sekarang 😊\n\nKami akan proses dan hantar ke alamat Cik. Ada apa-apa yang perlu disahkan? ❤️";
 
 setInterval(async function() {
   var now = Date.now();
@@ -263,7 +255,10 @@ setInterval(async function() {
             }
           } catch (err) { console.error("Error semak stok follow up:", err.message); }
         }
-        await hantarMesej(phone, MSG_STAGE3A); followUpQueue[phone].sent3a = true; console.log("Stage 3a sent to " + phone);
+        // ===== HANTAR MSG IKUT KAEDAH BAYAR =====
+        var isCOD3a = q.kaedah && q.kaedah.toLowerCase().includes("cod");
+        await hantarMesej(phone, isCOD3a ? MSG_STAGE3A_COD : MSG_STAGE3A);
+        followUpQueue[phone].sent3a = true; console.log("Stage 3a sent to " + phone + (isCOD3a ? " (COD)" : ""));
       }
       if (q.sent3a && !q.sent3b && q.orderedAt && (now - q.orderedAt) >= 24 * 60 * 60 * 1000) {
         if (q.produk && q.saiz && q.warna) {
@@ -278,7 +273,9 @@ setInterval(async function() {
             }
           } catch (err) { console.error("Error semak stok follow up 3b:", err.message); }
         }
-        await hantarMesej(phone, MSG_STAGE3B); followUpQueue[phone].sent3b = true; followUpQueue[phone].done = true; console.log("Stage 3b sent to " + phone);
+        var isCOD3b = q.kaedah && q.kaedah.toLowerCase().includes("cod");
+        await hantarMesej(phone, isCOD3b ? MSG_STAGE3B_COD : MSG_STAGE3B);
+        followUpQueue[phone].sent3b = true; followUpQueue[phone].done = true; console.log("Stage 3b sent to " + phone + (isCOD3b ? " (COD)" : ""));
       }
     }
   }
@@ -390,9 +387,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
       promoHarga.forEach(function(p) { promoText += "- " + p.Baju + ": RM" + p.Harga_Promo + " (XS-2XL), RM" + (p.Harga_Promo_3XL4XL || (parseInt(p.Harga_Promo) + 10)) + " (3XL-4XL)\n"; });
     }
     promoGift.forEach(function(p) {
-      if (p.Gambar_Gift_URL) {
-        promoText += "  (Gambar " + p.Gift + " boleh ditunjukkan bila buyer tanya — sistem akan hantar automatik)\n";
-      }
+      if (p.Gambar_Gift_URL) promoText += "  (Gambar " + p.Gift + " boleh ditunjukkan bila buyer tanya — sistem akan hantar automatik)\n";
     });
     promoText += "Sebut promo bila buyer hampir nak beli atau tanya harga. Gunakan sebagai urgency untuk close.\n";
   }
@@ -419,6 +414,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- Bila sebut harga, WAJIB semak promo aktif dan inform buyer tentang promo sekaligus\n" +
     "- Contoh: 'Harga RM85 (XS-2XL). Sekarang ada PROMO FREE POSTAGE untuk Semenanjung 😊'\n" +
     "- Bila pelanggan tanya warna — senaraikan warna yang ada SAHAJA dalam teks\n" +
+    "- JANGAN sebut bilangan warna ('ada 4 warna', 'ada 5 warna') — terus senaraikan warna sahaja\n" +
     "- Untuk recommend saiz, WAJIB tanya ukuran dada (inchi) dan berat badan (kg) — kedua-dua penting\n" +
     "- JANGAN tanya tinggi — tidak relevan untuk sizing baju kurung\n" +
     "- Bila pelanggan kata 'nak ukur dulu', 'ukur baju dulu', 'ukur badan dulu' — maksudnya mereka nak ukur sendiri di rumah\n" +
@@ -435,6 +431,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- Kaedah Pembayaran: Bank Transfer, QR Pay atau COD\n" +
     "- COD: Tambah RM4 kepada kos postage\n" +
     "- COD boleh untuk SEMUA kawasan termasuk Semenanjung, Sabah dan Sarawak\n" +
+    "- COD: Buyer TIDAK perlu hantar resit — bayar terus kepada rider masa barang sampai\n" +
     "- Kalau ada promo free postage — JANGAN kira postage dalam total. Terus beritahu total tanpa postage dan sebut 'FREE POSTAGE'\n" +
     "- Contoh betul: 'Total Cik: RM90. FREE POSTAGE untuk Semenanjung 😊'\n" +
     "- Contoh salah: 'Total RM96. Ada promo free postage jimat RM6' — ini confuse buyer\n" +
@@ -474,7 +471,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "  1. Confirm beli → tanya lokasi (Semenanjung/Sabah/Sarawak)\n" +
     "  2. Kira postage → semak promo dulu → kalau ada free postage apply dulu baru beritahu total\n" +
     "  3. Tanya kaedah bayar (Bank Transfer/QR Pay/COD)\n" +
-    "  4. COD → tulis ORDER_COD_CONFIRMED\n" +
+    "  4. COD → tulis ORDER_COD_CONFIRMED — JANGAN minta resit untuk COD\n" +
     "  4b. Resit bank transfer/QR → tulis ORDER_RECEIPT_RECEIVED\n" +
     "  5. Minta details penghantaran\n" +
     "  6. Semua details lengkap → WAJIB tulis tepat seperti ini tanpa ubah format: ORDER_CONFIRMED:nama|notel|alamat|poskod|bandar|negeri|produk|saiz|warna|harga|postage|total|kaedahbayar|penamaakaun|nota\n" +
@@ -551,37 +548,14 @@ app.post("/webhook", async function(req, res) {
 
     if (!from || !text) return res.sendStatus(200);
 
-    // ===== ADMIN COMMANDS =====
     if (phoneNumber === "601123726341") {
-      if (text.startsWith("/stop ")) {
-        var stopNum = text.replace("/stop ", "").trim();
-        global.stopList[stopNum] = true;
-        await simpanStopList(stopNum); // Simpan ke sheet
-        await hantarMesej(phoneNumber, "Bot distop untuk: " + stopNum + " ✅");
-        return res.sendStatus(200);
-      }
-      if (text.startsWith("/start ")) {
-        var startNum = text.replace("/start ", "").trim();
-        delete global.stopList[startNum];
-        await buangStopList(startNum); // Buang dari sheet
-        await hantarMesej(phoneNumber, "Bot diaktif semula untuk: " + startNum + " ✅");
-        return res.sendStatus(200);
-      }
-      if (text.startsWith("/inject ")) {
-        var parts = text.replace("/inject ", "").trim();
-        var spaceIdx = parts.indexOf(" ");
-        var targetNum = parts.substring(0, spaceIdx);
-        var injectText = parts.substring(spaceIdx + 1);
-        if (!sesi[targetNum]) sesi[targetNum] = [];
-        sesi[targetNum].push({ role: "user", content: injectText });
-        await simpanSesi(targetNum, sesi[targetNum]);
-        await hantarMesej(phoneNumber, "Inject berjaya untuk: " + targetNum + " ✅");
-        return res.sendStatus(200);
-      }
+      if (text.startsWith("/stop ")) { var stopNum = text.replace("/stop ", "").trim(); global.stopList[stopNum] = true; await simpanStopList(stopNum); await hantarMesej(phoneNumber, "Bot distop untuk: " + stopNum + " ✅"); return res.sendStatus(200); }
+      if (text.startsWith("/start ")) { var startNum = text.replace("/start ", "").trim(); delete global.stopList[startNum]; await buangStopList(startNum); await hantarMesej(phoneNumber, "Bot diaktif semula untuk: " + startNum + " ✅"); return res.sendStatus(200); }
+      if (text.startsWith("/inject ")) { var parts = text.replace("/inject ", "").trim(); var spaceIdx = parts.indexOf(" "); var targetNum = parts.substring(0, spaceIdx); var injectText = parts.substring(spaceIdx + 1); if (!sesi[targetNum]) sesi[targetNum] = []; sesi[targetNum].push({ role: "user", content: injectText }); await simpanSesi(targetNum, sesi[targetNum]); await hantarMesej(phoneNumber, "Inject berjaya untuk: " + targetNum + " ✅"); return res.sendStatus(200); }
     }
     if (global.stopList[phoneNumber]) { console.log("Bot distop untuk: " + phoneNumber); return res.sendStatus(200); }
 
-    if (text.trim() === "/reset") { sesi[phoneNumber] = []; await simpanSesi(phoneNumber, []); followUpQueue[phoneNumber] = { stage: "browsing", lastReply: Date.now(), sent1: false, sent1b: false, sent2: false, sent3a: false, sent3b: false, hasJanji: false, lastContext: "", janjiAt: null, orderedAt: null, done: false, produk: "", saiz: "", warna: "" }; await hantarMesej(phoneNumber, "Sesi telah direset. Boleh saya bantu Cik? 😊"); return res.sendStatus(200); }
+    if (text.trim() === "/reset") { sesi[phoneNumber] = []; await simpanSesi(phoneNumber, []); followUpQueue[phoneNumber] = { stage: "browsing", lastReply: Date.now(), sent1: false, sent1b: false, sent2: false, sent3a: false, sent3b: false, hasJanji: false, lastContext: "", janjiAt: null, orderedAt: null, done: false, produk: "", saiz: "", warna: "", kaedah: "" }; await hantarMesej(phoneNumber, "Sesi telah direset. Boleh saya bantu Cik? 😊"); return res.sendStatus(200); }
 
     if (detectPromptInjection(text)) { await hantarMesej(phoneNumber, "Maaf Cik, saya hanya boleh membantu berkaitan produk ADEL Adyana Elegance. 😊"); await hantarMesej("601123726341", "PROMPT INJECTION!\nNo: " + phoneNumber + "\nMesej: " + text); return res.sendStatus(200); }
 
@@ -598,7 +572,7 @@ app.post("/webhook", async function(req, res) {
     if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) { if (followUpQueue[phoneNumber]) { followUpQueue[phoneNumber].done = true; followUpQueue[phoneNumber].sent1 = true; followUpQueue[phoneNumber].sent2 = true; } }
 
     if (!followUpQueue[phoneNumber]) {
-      followUpQueue[phoneNumber] = { stage: "browsing", lastReply: Date.now(), sent1: false, sent1b: false, sent2: false, sent3a: false, sent3b: false, hasJanji: false, lastContext: "", janjiAt: null, orderedAt: null, done: false, produk: "", saiz: "", warna: "" };
+      followUpQueue[phoneNumber] = { stage: "browsing", lastReply: Date.now(), sent1: false, sent1b: false, sent2: false, sent3a: false, sent3b: false, hasJanji: false, lastContext: "", janjiAt: null, orderedAt: null, done: false, produk: "", saiz: "", warna: "", kaedah: "" };
     } else {
       if (followUpQueue[phoneNumber].stage === "browsing") { followUpQueue[phoneNumber].lastReply = Date.now(); followUpQueue[phoneNumber].done = false; }
       else if (followUpQueue[phoneNumber].stage === "ordered") { followUpQueue[phoneNumber].lastReply = Date.now(); }
@@ -640,21 +614,22 @@ app.post("/webhook", async function(req, res) {
       else if (followUpQueue[phoneNumber].stage === "browsing") { followUpQueue[phoneNumber].hasJanji = true; followUpQueue[phoneNumber].lastContext = text; followUpQueue[phoneNumber].janjiAt = Date.now(); }
     }
 
-     // ===== DETECT GAMBAR FREE GIFT =====
-     var kataGambarGift = ["gambar brooch", "tgk brooch", "tengok brooch", "brooch mcm mana", "brooch macam mana", "gift tu", "free gift tu", "hadiah tu"];
-     if (kataGambarGift.some(function(k) { return textLower.includes(k); })) {
-       var promoGambar = promoAktif.find(function(p) { return p.Gambar_Gift_URL && p.Gambar_Gift_URL.trim(); });
-       if (promoGambar) {
-       var giftJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
-       giftJawapan = sanitizeJawapan(giftJawapan);
-       sesi[phoneNumber].push({ role: "assistant", content: giftJawapan });
-       await simpanSesi(phoneNumber, sesi[phoneNumber]);
-       await hantarMesej(phoneNumber, giftJawapan);
-       await new Promise(function(r) { setTimeout(r, 1000); });
-       await hantarGambar(phoneNumber, "Ini brooch free gift untuk Cik 😊", promoGambar.Gambar_Gift_URL);
-       return res.sendStatus(200);
-     }
-   }
+    // ===== DETECT GAMBAR FREE GIFT =====
+    var kataGambarGift = ["gambar brooch","tgk brooch","tengok brooch","brooch mcm mana","brooch macam mana","gift tu","free gift tu","hadiah tu"];
+    if (kataGambarGift.some(function(k) { return textLower.includes(k); })) {
+      var promoGambar = promoAktif.find(function(p) { return p.Gambar_Gift_URL && p.Gambar_Gift_URL.trim(); });
+      if (promoGambar) {
+        var giftJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
+        giftJawapan = sanitizeJawapan(giftJawapan);
+        sesi[phoneNumber].push({ role: "assistant", content: giftJawapan });
+        await simpanSesi(phoneNumber, sesi[phoneNumber]);
+        await hantarMesej(phoneNumber, giftJawapan);
+        await new Promise(function(r) { setTimeout(r, 1000); });
+        await hantarGambar(phoneNumber, "Ini brooch free gift untuk Cik 😊", promoGambar.Gambar_Gift_URL);
+        return res.sendStatus(200);
+      }
+    }
+
     var kataGambarReal = ["close up","closeup","real","bukan ai","bukan gambar ai","gambar sebenar","gambar real","material kain","texture","close up kain","gambar betul"];
     if (kataGambarReal.some(function(k) { return textLower.includes(k); })) {
       var bajuSkrg = bajuKonteks || getBajuTerakhir(history, products); var warnaSkrg = null;
@@ -712,7 +687,11 @@ app.post("/webhook", async function(req, res) {
       followUpQueue[phoneNumber].stage = "ordered"; followUpQueue[phoneNumber].orderedAt = Date.now(); followUpQueue[phoneNumber].sent3a = false; followUpQueue[phoneNumber].sent3b = false; followUpQueue[phoneNumber].done = false;
       jawapan = jawapan.replace("ORDER_COD_CONFIRMED", "").trim();
       var orderDetails = await extractOrderDetails(history, products);
-      followUpQueue[phoneNumber].produk = orderDetails.produk; followUpQueue[phoneNumber].saiz = orderDetails.saiz; followUpQueue[phoneNumber].warna = orderDetails.warna;
+      followUpQueue[phoneNumber].produk = orderDetails.produk;
+      followUpQueue[phoneNumber].saiz = orderDetails.saiz;
+      followUpQueue[phoneNumber].warna = orderDetails.warna;
+      followUpQueue[phoneNumber].kaedah = "COD"; // Force COD
+      console.log("COD confirmed — kaedah: COD");
     }
     if (jawapan.includes("ORDER_RECEIPT_RECEIVED")) { followUpQueue[phoneNumber].stage = "paid"; followUpQueue[phoneNumber].done = true; jawapan = jawapan.replace("ORDER_RECEIPT_RECEIVED", "").trim(); }
     console.log("Jawapan Claude:", jawapan);
@@ -731,7 +710,10 @@ app.post("/webhook", async function(req, res) {
     if (buyerPilihQR && process.env.QR_IMAGE_URL) {
       followUpQueue[phoneNumber].stage = "ordered"; followUpQueue[phoneNumber].orderedAt = Date.now(); followUpQueue[phoneNumber].sent3a = false; followUpQueue[phoneNumber].sent3b = false; followUpQueue[phoneNumber].done = false;
       var qrOrderDetails = await extractOrderDetails(history, products);
-      followUpQueue[phoneNumber].produk = qrOrderDetails.produk; followUpQueue[phoneNumber].saiz = qrOrderDetails.saiz; followUpQueue[phoneNumber].warna = qrOrderDetails.warna;
+      followUpQueue[phoneNumber].produk = qrOrderDetails.produk;
+      followUpQueue[phoneNumber].saiz = qrOrderDetails.saiz;
+      followUpQueue[phoneNumber].warna = qrOrderDetails.warna;
+      followUpQueue[phoneNumber].kaedah = "QR Pay"; // Force QR
       await hantarMesej(phoneNumber, jawapan); await new Promise(function(r) { setTimeout(r, 1000); }); await hantarGambar(phoneNumber, "Ini QR code untuk pembayaran Cik 😊", process.env.QR_IMAGE_URL);
       sesi[phoneNumber].push({ role: "assistant", content: jawapan }); await simpanSesi(phoneNumber, sesi[phoneNumber]);
       return res.sendStatus(200);
