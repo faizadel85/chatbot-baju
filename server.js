@@ -143,7 +143,7 @@ async function hantarMesej(phoneNumber, mesej) {
 
 async function hantarGambar(phoneNumber, mesej, gambarUrl) {
   if (!mesej || !mesej.trim()) mesej = "😊";
-console.log("Hantar gambar URL:", gambarUrl);
+  console.log("Hantar gambar URL:", gambarUrl);
   var cuba = 0;
   while (cuba < 3) {
     try {
@@ -187,7 +187,7 @@ async function claudeDecideGambar(jawapan, history, products, katalog, sizeChart
     katalog.forEach(function(k) { if (k && k.Nama && k.Gambar_URL) senaraiGambar.push("KATALOG:" + k.Nama + "|" + k.Gambar_URL); });
     products.forEach(function(p) { if (p && p.Nama && p.Warna && p.Gambar_URL) senaraiGambar.push("WARNA:" + p.Nama + " " + p.Warna + "|" + p.Gambar_URL); });
     sizeChartImages.forEach(function(s) { if (s && s.Nama && s.Gambar_URL) senaraiGambar.push("SIZECHART:" + s.Nama + "|" + s.Gambar_URL); });
-    var decisionPrompt = "Kamu adalah sistem yang memutuskan gambar mana perlu dihantar kepada buyer.\n\nJawapan bot kepada buyer:\n" + jawapan + "\n\nHistory conversation:\n" + history.slice(-1000).replace(/[\uD800-\uDFFF]/g, "") + "\n\nSenarai gambar yang ada (format JENIS:NAMA|URL):\n" + senaraiGambar.join("\n") + "\n\nTUGASAN: Berdasarkan jawapan bot dan context conversation, tentukan gambar mana perlu dihantar.\nPERATURAN:\n- Kalau bot propose BEBERAPA baju → hantar KATALOG setiap baju yang disebut\n- Kalau bot tunjuk warna specific → hantar WARNA yang berkaitan\n- Kalau bot tanya saiz/ukuran → hantar SIZECHART baju berkaitan\n- Kalau bot sekadar jawab soalan biasa tanpa tunjuk produk → jawab TIADA\n- Kalau dalam order flow (tanya alamat, payment, QR dll) → jawab TIADA\n- Kalau buyer dah close/tolak/terima kasih → jawab TIADA\n\nJawab HANYA dalam format ini:\nHANTAR:URL_GAMBAR\natau\nTIADA\n\nJANGAN tulis apa-apa lain.";
+    var decisionPrompt = "Kamu adalah sistem yang memutuskan gambar mana perlu dihantar kepada buyer.\n\nJawapan bot kepada buyer:\n" + jawapan + "\n\nHistory conversation:\n" + history.slice(-1000).replace(/[\uD800-\uDFFF]/g, "") + "\n\nSenarai gambar yang ada (format JENIS:NAMA|URL):\n" + senaraiGambar.join("\n") + "\n\nTUGASAN: Berdasarkan jawapan bot dan context conversation, tentukan gambar mana perlu dihantar.\nPERATURAN:\n- Kalau bot propose BEBERAPA baju berbeza → hantar KATALOG setiap baju yang disebut\n- Kalau bot tunjuk warna specific yang buyer dah pilih → hantar WARNA yang berkaitan SAHAJA\n- Kalau bot senaraikan warna sebagai pilihan (buyer belum pilih warna) → hantar KATALOG baju tu SAHAJA, JANGAN hantar semua warna\n- Kalau bot tanya saiz/ukuran → hantar SIZECHART baju berkaitan\n- Kalau bot sekadar jawab soalan biasa tanpa tunjuk produk → jawab TIADA\n- Kalau dalam order flow (tanya alamat, payment, QR dll) → jawab TIADA\n- Kalau buyer dah close/tolak/terima kasih → jawab TIADA\n\nJawab HANYA dalam format ini:\nHANTAR:URL_GAMBAR\natau\nTIADA\n\nJANGAN tulis apa-apa lain.";
     var decision = await callClaude(decisionPrompt, [{ role: "user", content: "Tentukan gambar." }], 300);
     decision = decision.trim();
     if (decision === "TIADA" || !decision.includes("HANTAR:")) return [];
@@ -231,57 +231,43 @@ setInterval(async function() {
     if (global.stopList && global.stopList[phone]) continue;
 
     if (q.stage === "browsing") {
-      var adaHistory = q.hasHistory; // Ada conversation history
 
-      if (adaHistory) {
-        // ===== STAGE 0 — Ada reply (conversation) =====
-        // Stage 0a: 3 jam
-        if (!q.sent0a && (now - q.lastReply) >= 3 * 60 * 60 * 1000) {
-          try {
-            var followUp0a = await callClaude(
-              "Tulis follow up WhatsApp mesra Bahasa Malaysia berdasarkan context conversation. 2-3 ayat pendek. Panggil Cik. Jangan sebut harga. Guna info dari conversation untuk buat mesej relevan. Teks biasa sahaja.",
-              [{ role: "user", content: "Context conversation terakhir: '" + (q.lastBotReply || q.lastContext || "") + "'. Tulis follow up ringkas." }], 150);
-            await hantarMesej(phone, followUp0a);
-            followUpQueue[phone].sent0a = true;
-            console.log("Stage 0a sent to " + phone);
-          } catch (err) { console.error("Error stage 0a:", err.message); }
-        }
-        // Stage 0b: 24 jam
-        if (q.sent0a && !q.sent0b && (now - q.lastReply) >= 24 * 60 * 60 * 1000) {
-          try {
-            var followUp0b = await callClaude(
-              "Tulis follow up WhatsApp mesra Bahasa Malaysia. 2-3 ayat pendek. Panggil Cik. Jangan sebut harga. Teks biasa sahaja.",
-              [{ role: "user", content: "Context conversation: '" + (q.lastBotReply || q.lastContext || "") + "'. Tulis follow up terakhir dengan urgency ringan." }], 150);
-            await hantarMesej(phone, followUp0b);
-            followUpQueue[phone].sent0b = true;
-            followUpQueue[phone].done = true;
-            console.log("Stage 0b sent to " + phone);
-          } catch (err) { console.error("Error stage 0b:", err.message); }
-        }
-      } else {
-        // ===== STAGE 1 — Tak reply langsung =====
-        // Stage 1: 1 jam
-        if (!q.sent1 && !q.hasJanji && (now - q.lastReply) >= 60 * 60 * 1000) {
-          await hantarMesej(phone, MSG_STAGE1);
-          followUpQueue[phone].sent1 = true;
-          console.log("Stage 1 sent to " + phone);
-        }
-        // Stage 1c: 4 jam
-        if (q.sent1 && !q.sent1c && (now - q.lastReply) >= 4 * 60 * 60 * 1000) {
-          await hantarMesej(phone, MSG_STAGE1);
-          followUpQueue[phone].sent1c = true;
-          console.log("Stage 1c sent to " + phone);
-        }
-        // Stage 2: 24 jam
-        if (q.sent1c && !q.sent2 && (now - q.lastReply) >= 24 * 60 * 60 * 1000) {
-          await hantarMesej(phone, MSG_STAGE2);
-          followUpQueue[phone].sent2 = true;
-          followUpQueue[phone].done = true;
-          console.log("Stage 2 sent to " + phone);
-        }
+      // ===== STAGE 1: 1 jam — SEMUA buyer =====
+      if (!q.sent1 && !q.hasJanji && (now - q.lastReply) >= 60 * 60 * 1000) {
+        await hantarMesej(phone, MSG_STAGE1);
+        followUpQueue[phone].sent1 = true;
+        console.log("Stage 1 sent to " + phone);
       }
 
-      // ===== STAGE 1b — Ada janji (kekal, tak kira ada history atau tidak) =====
+      // ===== STAGE 0a/1c: 3 jam (ada history) atau 4 jam (tiada history) =====
+      var tempoh2 = q.hasHistory ? 3 * 60 * 60 * 1000 : 4 * 60 * 60 * 1000;
+      if (q.sent1 && !q.sent0a && (now - q.lastReply) >= tempoh2) {
+        if (q.hasHistory && q.lastBotReply) {
+          // Ada history — Claude generate based on context
+          try {
+            var followUp0a = await callClaude(
+              "Tulis follow up WhatsApp mesra Bahasa Malaysia berdasarkan context conversation. 2-3 ayat pendek. Panggil Cik. Jangan sebut harga. Guna info dari context untuk buat mesej relevan. Teks biasa sahaja.",
+              [{ role: "user", content: "Context conversation terakhir: '" + q.lastBotReply + "'. Tulis follow up ringkas untuk encourage buyer proceed." }], 150);
+            await hantarMesej(phone, followUp0a);
+            console.log("Stage 0a (context) sent to " + phone);
+          } catch (err) { console.error("Error stage 0a:", err.message); }
+        } else {
+          // Tiada history — hantar MSG_STAGE1 sekali lagi
+          await hantarMesej(phone, MSG_STAGE1);
+          console.log("Stage 1c (generic) sent to " + phone);
+        }
+        followUpQueue[phone].sent0a = true;
+      }
+
+      // ===== STAGE 2: 24 jam =====
+      if (q.sent0a && !q.sent2 && (now - q.lastReply) >= 24 * 60 * 60 * 1000) {
+        await hantarMesej(phone, MSG_STAGE2);
+        followUpQueue[phone].sent2 = true;
+        followUpQueue[phone].done = true;
+        console.log("Stage 2 sent to " + phone);
+      }
+
+      // ===== STAGE 1b: Ada janji — 3 jam selepas janji =====
       if (q.hasJanji && !q.sent1b && q.janjiAt && (now - q.janjiAt) >= 3 * 60 * 60 * 1000) {
         try {
           var followUp1b = await callClaude(
@@ -289,7 +275,6 @@ setInterval(async function() {
             [{ role: "user", content: "Buyer kata: '" + q.lastContext + "'. Tulis follow up." }], 150);
           await hantarMesej(phone, followUp1b);
           followUpQueue[phone].sent1b = true;
-          followUpQueue[phone].sent1 = true;
           console.log("Stage 1b sent to " + phone);
         } catch (err) { console.error("Error stage 1b:", err.message); }
       }
@@ -557,7 +542,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "  JANGAN minta buyer whatsapp admin sendiri\n" +
     "  JANGAN janji refund akan diluluskan — hanya inform admin akan proses\n" +
     "- Polisi Penukaran/Pertukaran:\n" +
-    "  1. DEFECT: Bili buyer report defect — jawab mesra dan inform admin akan dimaklumkan. Contoh: 'Maaf Cik atas kesulitan ini. Saya sudah maklumkan kepada admin kami dan admin akan hubungi Cik tidak lama lagi untuk proses penukaran 😊'\n" +
+    "  1. DEFECT: Bila buyer report defect — jawab mesra dan inform admin akan dimaklumkan. Contoh: 'Maaf Cik atas kesulitan ini. Saya sudah maklumkan kepada admin kami dan admin akan hubungi Cik tidak lama lagi untuk proses penukaran 😊'\n" +
     "  2. SALAH SAIZ: Bila buyer minta tukar saiz — jawab mesra dan inform admin akan dimaklumkan. Contoh: 'Baik Cik, saya sudah maklumkan kepada admin kami. Admin akan hubungi Cik segera untuk bantu proses penukaran saiz 😊'\n" +
     "  3. TIADA pertukaran untuk sebab lain selain defect atau salah saiz.\n" +
     "  4. JANGAN minta buyer hubungi admin sendiri — admin yang akan hubungi buyer.";
@@ -598,12 +583,8 @@ app.post("/webhook", async function(req, res) {
     // ===== DUPLICATE MESSAGE CHECK =====
     var msgId = data.data.id || "";
     if (!global.processedMsgs) global.processedMsgs = {};
-    if (msgId && global.processedMsgs[msgId]) {
-      console.log("Duplicate msg skip:", msgId);
-      return res.sendStatus(200);
-    }
+    if (msgId && global.processedMsgs[msgId]) { console.log("Duplicate msg skip:", msgId); return res.sendStatus(200); }
     if (msgId) global.processedMsgs[msgId] = true;
-    // Buang msg lama setiap 1000 entries
     if (Object.keys(global.processedMsgs).length > 1000) global.processedMsgs = {};
 
     if (!text && isVoice) { await hantarMesej(phoneNumber, "Maaf Cik, saya tidak dapat dengar voice note. Boleh Cik taip mesej anda? 😊"); return res.sendStatus(200); }
@@ -633,7 +614,7 @@ app.post("/webhook", async function(req, res) {
 
     if (text.trim() === "/reset") {
       sesi[phoneNumber] = []; await simpanSesi(phoneNumber, []);
-      followUpQueue[phoneNumber] = { stage: "browsing", lastReply: Date.now(), hasHistory: false, lastBotReply: "", sent0a: false, sent0b: false, sent1: false, sent1b: false, sent1c: false, sent2: false, sent3a: false, sent3b: false, hasJanji: false, lastContext: "", janjiAt: null, orderedAt: null, done: false, produk: "", saiz: "", warna: "", kaedah: "" };
+      followUpQueue[phoneNumber] = { stage: "browsing", lastReply: Date.now(), hasHistory: false, lastBotReply: "", sent0a: false, sent1: false, sent1b: false, sent2: false, sent3a: false, sent3b: false, hasJanji: false, lastContext: "", janjiAt: null, orderedAt: null, done: false, produk: "", saiz: "", warna: "", kaedah: "" };
       await hantarMesej(phoneNumber, "Sesi telah direset. Boleh saya bantu Cik? 😊"); return res.sendStatus(200);
     }
 
@@ -652,7 +633,7 @@ app.post("/webhook", async function(req, res) {
     if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) { if (followUpQueue[phoneNumber]) { followUpQueue[phoneNumber].done = true; followUpQueue[phoneNumber].sent1 = true; followUpQueue[phoneNumber].sent2 = true; } }
 
     if (!followUpQueue[phoneNumber]) {
-      followUpQueue[phoneNumber] = { stage: "browsing", lastReply: Date.now(), hasHistory: false, lastBotReply: "", sent0a: false, sent0b: false, sent1: false, sent1b: false, sent1c: false, sent2: false, sent3a: false, sent3b: false, hasJanji: false, lastContext: "", janjiAt: null, orderedAt: null, done: false, produk: "", saiz: "", warna: "", kaedah: "" };
+      followUpQueue[phoneNumber] = { stage: "browsing", lastReply: Date.now(), hasHistory: false, lastBotReply: "", sent0a: false, sent1: false, sent1b: false, sent2: false, sent3a: false, sent3b: false, hasJanji: false, lastContext: "", janjiAt: null, orderedAt: null, done: false, produk: "", saiz: "", warna: "", kaedah: "" };
     } else {
       if (followUpQueue[phoneNumber].stage === "browsing") { followUpQueue[phoneNumber].lastReply = Date.now(); followUpQueue[phoneNumber].done = false; }
       else if (followUpQueue[phoneNumber].stage === "ordered") { followUpQueue[phoneNumber].lastReply = Date.now(); }
@@ -766,10 +747,7 @@ app.post("/webhook", async function(req, res) {
       followUpQueue[phoneNumber].stage = "ordered"; followUpQueue[phoneNumber].orderedAt = Date.now(); followUpQueue[phoneNumber].sent3a = false; followUpQueue[phoneNumber].sent3b = false; followUpQueue[phoneNumber].done = false;
       jawapan = jawapan.replace("ORDER_COD_CONFIRMED", "").trim();
       var orderDetails = await extractOrderDetails(history, products);
-      followUpQueue[phoneNumber].produk = orderDetails.produk;
-      followUpQueue[phoneNumber].saiz = orderDetails.saiz;
-      followUpQueue[phoneNumber].warna = orderDetails.warna;
-      followUpQueue[phoneNumber].kaedah = "COD";
+      followUpQueue[phoneNumber].produk = orderDetails.produk; followUpQueue[phoneNumber].saiz = orderDetails.saiz; followUpQueue[phoneNumber].warna = orderDetails.warna; followUpQueue[phoneNumber].kaedah = "COD";
     }
     if (jawapan.includes("ORDER_RECEIPT_RECEIVED")) { followUpQueue[phoneNumber].stage = "paid"; followUpQueue[phoneNumber].done = true; jawapan = jawapan.replace("ORDER_RECEIPT_RECEIVED", "").trim(); }
     console.log("Jawapan Claude:", jawapan);
@@ -788,10 +766,7 @@ app.post("/webhook", async function(req, res) {
     if (buyerPilihQR && process.env.QR_IMAGE_URL) {
       followUpQueue[phoneNumber].stage = "ordered"; followUpQueue[phoneNumber].orderedAt = Date.now(); followUpQueue[phoneNumber].sent3a = false; followUpQueue[phoneNumber].sent3b = false; followUpQueue[phoneNumber].done = false;
       var qrOrderDetails = await extractOrderDetails(history, products);
-      followUpQueue[phoneNumber].produk = qrOrderDetails.produk;
-      followUpQueue[phoneNumber].saiz = qrOrderDetails.saiz;
-      followUpQueue[phoneNumber].warna = qrOrderDetails.warna;
-      followUpQueue[phoneNumber].kaedah = "QR Pay";
+      followUpQueue[phoneNumber].produk = qrOrderDetails.produk; followUpQueue[phoneNumber].saiz = qrOrderDetails.saiz; followUpQueue[phoneNumber].warna = qrOrderDetails.warna; followUpQueue[phoneNumber].kaedah = "QR Pay";
       await hantarMesej(phoneNumber, jawapan); await new Promise(function(r) { setTimeout(r, 1000); }); await hantarGambar(phoneNumber, "Ini QR code untuk pembayaran Cik 😊", process.env.QR_IMAGE_URL);
       sesi[phoneNumber].push({ role: "assistant", content: jawapan }); await simpanSesi(phoneNumber, sesi[phoneNumber]);
       return res.sendStatus(200);
@@ -802,8 +777,8 @@ app.post("/webhook", async function(req, res) {
 
     // ===== UPDATE hasHistory DAN lastBotReply =====
     if (followUpQueue[phoneNumber] && followUpQueue[phoneNumber].stage === "browsing") {
-      followUpQueue[phoneNumber].hasHistory = sesi[phoneNumber].length > 2; // Ada lebih dari 1 round conversation
-      followUpQueue[phoneNumber].lastBotReply = jawapan.slice(0, 200); // Simpan 200 char pertama jawapan bot
+      followUpQueue[phoneNumber].hasHistory = sesi[phoneNumber].length > 4; // Ada lebih dari 2 round conversation (exclude automated greeting)
+      followUpQueue[phoneNumber].lastBotReply = jawapan.slice(0, 200);
     }
 
     var gambarUrls = await claudeDecideGambar(jawapan, history, products, katalog, sizeChartImages);
