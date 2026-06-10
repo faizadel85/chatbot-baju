@@ -595,6 +595,17 @@ app.post("/webhook", async function(req, res) {
     var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "").replace("@lid", "");
     if (!phoneNumber) return res.sendStatus(200);
 
+    // ===== DUPLICATE MESSAGE CHECK =====
+    var msgId = data.data.id || "";
+    if (!global.processedMsgs) global.processedMsgs = {};
+    if (msgId && global.processedMsgs[msgId]) {
+      console.log("Duplicate msg skip:", msgId);
+      return res.sendStatus(200);
+    }
+    if (msgId) global.processedMsgs[msgId] = true;
+    // Buang msg lama setiap 1000 entries
+    if (Object.keys(global.processedMsgs).length > 1000) global.processedMsgs = {};
+
     if (!text && isVoice) { await hantarMesej(phoneNumber, "Maaf Cik, saya tidak dapat dengar voice note. Boleh Cik taip mesej anda? 😊"); return res.sendStatus(200); }
 
     if (!text && hasMedia) {
