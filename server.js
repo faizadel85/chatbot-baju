@@ -24,7 +24,7 @@ async function getGoogleAuth() {
 }
 
 var sheetCache = {};
-var CACHE_DURATION = 1 * 60 * 1000;
+var CACHE_DURATION = 0;
 
 async function getSheetDataCached(sheetName) {
   var now = Date.now();
