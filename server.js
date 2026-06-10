@@ -143,6 +143,7 @@ async function hantarMesej(phoneNumber, mesej) {
 
 async function hantarGambar(phoneNumber, mesej, gambarUrl) {
   if (!mesej || !mesej.trim()) mesej = "😊";
+console.log("Hantar gambar URL:", gambarUrl);
   var cuba = 0;
   while (cuba < 3) {
     try {
