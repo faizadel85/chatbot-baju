@@ -225,6 +225,10 @@ var MSG_STAGE3B_COD = "Salam Cik 🌷\n\nOrder COD Cik masih available ya buat m
 
 setInterval(async function() {
   var now = Date.now();
+  // ===== HAD CONCURRENT CLAUDE CALLS UNTUK FOLLOW UP =====
+  var claudeCallCount = 0;
+  var MAX_CLAUDE_CALLS = 5;
+
   for (var phone in followUpQueue) {
     var q = followUpQueue[phone];
     if (q.done) continue;
@@ -244,15 +248,21 @@ setInterval(async function() {
       if (q.sent1 && !q.sent0a && (now - q.lastReply) >= tempoh2) {
         if (q.hasHistory && q.lastBotReply) {
           // Ada history — Claude generate based on context
+          // ===== CHECK HAD SEBELUM CALL CLAUDE =====
+          if (claudeCallCount >= MAX_CLAUDE_CALLS) {
+            console.log("Had 0a reached — skip " + phone + " ke interval seterusnya");
+            continue;
+          }
+          claudeCallCount++;
           try {
             var followUp0a = await callClaude(
               "Tulis follow up WhatsApp mesra Bahasa Malaysia berdasarkan context conversation. 2-3 ayat pendek. Panggil Cik. Jangan sebut harga. Guna info dari context untuk buat mesej relevan. Teks biasa sahaja.",
               [{ role: "user", content: "Context conversation terakhir: '" + q.lastBotReply + "'. Tulis follow up ringkas untuk encourage buyer proceed." }], 150);
             await hantarMesej(phone, followUp0a);
-            console.log("Stage 0a (context) sent to " + phone);
+            console.log("Stage 0a (context) sent to " + phone + " [call " + claudeCallCount + "/" + MAX_CLAUDE_CALLS + "]");
           } catch (err) { console.error("Error stage 0a:", err.message); }
         } else {
-          // Tiada history — hantar MSG_STAGE1 sekali lagi
+          // Tiada history — hantar MSG_STAGE1 sekali lagi (no Claude call)
           await hantarMesej(phone, MSG_STAGE1);
           console.log("Stage 1c (generic) sent to " + phone);
         }
@@ -269,13 +279,18 @@ setInterval(async function() {
 
       // ===== STAGE 1b: Ada janji — 3 jam selepas janji =====
       if (q.hasJanji && !q.sent1b && q.janjiAt && (now - q.janjiAt) >= 3 * 60 * 60 * 1000) {
+        if (claudeCallCount >= MAX_CLAUDE_CALLS) {
+          console.log("Had 1b reached — skip " + phone + " ke interval seterusnya");
+          continue;
+        }
+        claudeCallCount++;
         try {
           var followUp1b = await callClaude(
             "Tulis follow up WhatsApp mesra Bahasa Malaysia. 2-3 ayat pendek. Panggil Cik. Jangan sebut harga. Teks biasa sahaja.",
             [{ role: "user", content: "Buyer kata: '" + q.lastContext + "'. Tulis follow up." }], 150);
           await hantarMesej(phone, followUp1b);
           followUpQueue[phone].sent1b = true;
-          console.log("Stage 1b sent to " + phone);
+          console.log("Stage 1b sent to " + phone + " [call " + claudeCallCount + "/" + MAX_CLAUDE_CALLS + "]");
         } catch (err) { console.error("Error stage 1b:", err.message); }
       }
     }
@@ -413,10 +428,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
 
   var tarikhText = "";
   if (tarikhSekarang) tarikhText = "\nTARIKH SEKARANG: " + tarikhSekarang + "\nGuna tarikh ini untuk kira anggaran sampai bila buyer tanya.\n";
-
   var konteksText = "";
   if (bajuKonteks) konteksText = "\nKONTEKS PENTING: Buyer ini sedang bertanya tentang " + bajuKonteks + ". Fokuskan jawapan pada baju ini sahaja melainkan buyer secara explicit minta tengok baju lain.\n";
-
   var orderFlowText = "";
   if (dalamOrderFlow) orderFlowText = "\nSTATUS ORDER: Buyer sudah memilih baju dan sedang dalam proses order. JANGAN cadang atau propose baju lain. Bila buyer tanya tentang material atau ciri-ciri baju — jawab info baju yang dipilih sahaja. Hanya propose baju lain kalau buyer kata nak tukar baju atau tak jadi beli.\n";
 
@@ -580,7 +593,6 @@ app.post("/webhook", async function(req, res) {
     var phoneNumber = from.replace("@c.us", "").replace("@s.whatsapp.net", "").replace("@lid", "");
     if (!phoneNumber) return res.sendStatus(200);
 
-    // ===== DUPLICATE MESSAGE CHECK =====
     var msgId = data.data.id || "";
     if (!global.processedMsgs) global.processedMsgs = {};
     if (msgId && global.processedMsgs[msgId]) { console.log("Duplicate msg skip:", msgId); return res.sendStatus(200); }
@@ -622,10 +634,8 @@ app.post("/webhook", async function(req, res) {
 
     var katatukar = ["nak tukar","nk tukar","tukar alamat","tukar baju","tukar saiz","tukar size","tukar warna","ubah alamat","ubah baju","ubah saiz","ubah size","ubah warna","salah alamat","salah saiz","salah size","salah baju","salah warna","boleh tukar","boleh ubah","cancel","batalkan"];
     if (katatukar.some(function(k) { return text.toLowerCase().includes(k); })) await hantarMesej("601123726341", "PERHATIAN - REQUEST PENUKARAN!\n\nNo Tel: " + phoneNumber + "\nMesej: " + text + "\n\nSila semak segera!");
-
     var kataRefund = ["refund","pulangkan duit","pulang duit","bayar balik","kembalikan wang","nak duit balik","minta refund","cancel refund"];
     if (kataRefund.some(function(k) { return text.toLowerCase().includes(k); })) await hantarMesej("601123726341", "PERHATIAN - REQUEST REFUND!\n\nNo Tel: " + phoneNumber + "\nMesej: " + text + "\n\nSila semak segera!");
-
     var kataDefect = ["defect","cacat","rosak","koyak","lubang","jahitan longgar","salah saiz","salah size","tersilap saiz","tersilap size"];
     if (kataDefect.some(function(k) { return text.toLowerCase().includes(k); })) await hantarMesej("601123726341", "PERHATIAN - REQUEST PENUKARAN/DEFECT!\n\nNo Tel: " + phoneNumber + "\nMesej: " + text + "\n\nSila hubungi buyer segera!");
 
@@ -740,7 +750,7 @@ app.post("/webhook", async function(req, res) {
       return res.sendStatus(200);
     }
 
-    var jawapan = await callClaude(systemPrompt, sesi[phoneNumber], 500);
+    var jawapan = await callClaude(systemPrompt, sesi[phoneNumber], dalamOrderFlow ? 500 : 300);
     jawapan = sanitizeJawapan(jawapan);
 
     if (jawapan.includes("ORDER_COD_CONFIRMED")) {
@@ -775,9 +785,8 @@ app.post("/webhook", async function(req, res) {
     sesi[phoneNumber].push({ role: "assistant", content: jawapan });
     await simpanSesi(phoneNumber, sesi[phoneNumber]);
 
-    // ===== UPDATE hasHistory DAN lastBotReply =====
     if (followUpQueue[phoneNumber] && followUpQueue[phoneNumber].stage === "browsing") {
-      followUpQueue[phoneNumber].hasHistory = sesi[phoneNumber].length > 4; // Ada lebih dari 2 round conversation (exclude automated greeting)
+      followUpQueue[phoneNumber].hasHistory = sesi[phoneNumber].length > 4;
       followUpQueue[phoneNumber].lastBotReply = jawapan.slice(0, 200);
     }
 
