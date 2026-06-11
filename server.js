@@ -642,14 +642,21 @@ app.post("/webhook", async function(req, res) {
     var kataTolak = ["tak nak","taknak","xnak","tak jadi","takjadi","tak minat","takminat","x minat","tidak berminat","tak berminat","cancel","batalkan","tak berkenan","tak perlu","takpe","ok takpe","xpe","dah ada","dah beli","mahal","tak mampu","budget tak cukup","lain kali","maybe later","next time","tak dulu","xperlu","x perlu","tak perlu hantar","xde tq","takde tq","no thanks","takpe tq","dah taknak","xnak dah"];
     if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) { if (followUpQueue[phoneNumber]) { followUpQueue[phoneNumber].done = true; followUpQueue[phoneNumber].sent1 = true; followUpQueue[phoneNumber].sent2 = true; } }
 
+    if (!sesi[phoneNumber]) { sesi[phoneNumber] = await loadSesi(phoneNumber); }
     if (!followUpQueue[phoneNumber]) {
-      followUpQueue[phoneNumber] = { stage: "browsing", lastReply: Date.now(), hasHistory: false, lastBotReply: "", sent0a: false, sent1: false, sent1b: false, sent2: false, sent3a: false, sent3b: false, hasJanji: false, lastContext: "", janjiAt: null, orderedAt: null, done: false, produk: "", saiz: "", warna: "", kaedah: "" };
+      var sesiAwal = sesi[phoneNumber] || [];
+      var adaHistoryAwal = sesiAwal.length > 4;
+      var lastBotReplyAwal = "";
+      if (adaHistoryAwal) {
+        var botMsgs = sesiAwal.filter(function(m) { return m.role === "assistant"; });
+        if (botMsgs.length > 0) lastBotReplyAwal = (botMsgs[botMsgs.length - 1].content || "").slice(0, 200);
+      }
+      followUpQueue[phoneNumber] = { stage: "browsing", lastReply: Date.now(), hasHistory: adaHistoryAwal, lastBotReply: lastBotReplyAwal, sent0a: false, sent1: false, sent1b: false, sent2: false, sent3a: false, sent3b: false, hasJanji: false, lastContext: "", janjiAt: null, orderedAt: null, done: false, produk: "", saiz: "", warna: "", kaedah: "" };
     } else {
       if (followUpQueue[phoneNumber].stage === "browsing") { followUpQueue[phoneNumber].lastReply = Date.now(); followUpQueue[phoneNumber].done = false; }
       else if (followUpQueue[phoneNumber].stage === "ordered") { followUpQueue[phoneNumber].lastReply = Date.now(); }
     }
 
-    if (!sesi[phoneNumber]) { sesi[phoneNumber] = await loadSesi(phoneNumber); }
     sesi[phoneNumber].push({ role: "user", content: text });
 
     var products = await getSheetDataCached("Sheet1");
@@ -750,7 +757,7 @@ app.post("/webhook", async function(req, res) {
       return res.sendStatus(200);
     }
 
-    var jawapan = await callClaude(systemPrompt, sesi[phoneNumber], dalamOrderFlow ? 500 : 300);
+    var jawapan = await callClaude(systemPrompt, sesi[phoneNumber], 500);
     jawapan = sanitizeJawapan(jawapan);
 
     if (jawapan.includes("ORDER_COD_CONFIRMED")) {
