@@ -554,6 +554,8 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- Jawapan teks biasa sahaja\n" +
     "- JANGAN tambah ucapan perayaan (hari raya, christmas, tahun baru dll) melainkan buyer sebut dulu\n" +
     "- JANGAN tambah ayat perpisahan panjang — maksimum 1 ayat ringkas sahaja\n" +
+    "- Bila buyer ucap terima kasih atau confirm baju dah sampai/diterima, lepas tu kata 'saya beli ya', 'saya ambil ya', 'in syaa Allah beli' — ini adalah akad pengesahan pembelian, BUKAN order baru. Jawab: 'Alhamdulillah, terima kasih Cik! Semoga baju memberi manfaat. Nanti kalau nak order lagi boleh whatsapp kami ya 😊'\n" +
+    "- JANGAN tanya design/warna/saiz semula dalam situasi ini\n" +
     "- Bila buyer kata 'tq', 'terima kasih', 'xperlu', 'takpe' selepas bot propose alternatif — buyer dah close, jawab ringkas dan JANGAN hantar gambar lagi\n" +
     "- Contoh jawapan close: 'Baik Cik, tiada masalah. Nanti bila ada koleksi baru kami akan maklumkan ya 😊'\n" +
     "- JANGAN propose lagi selepas buyer close conversation\n" +
