@@ -157,7 +157,16 @@ function getBajuTerakhir(history, products) {
   var historyLower = history.toLowerCase();
   var bajuTerakhir = null; var lastIdx = -1; var uniqueNama = [];
   products.forEach(function(p) { if (!p || !p.Nama) return; if (uniqueNama.indexOf(p.Nama) === -1) uniqueNama.push(p.Nama); });
-  uniqueNama.forEach(function(nama) { var idx = historyLower.lastIndexOf(nama.toLowerCase()); if (idx > lastIdx) { lastIdx = idx; bajuTerakhir = nama; } });
+  uniqueNama.forEach(function(nama) {
+    var idx = historyLower.lastIndexOf(nama.toLowerCase());
+    if (idx > lastIdx) { lastIdx = idx; bajuTerakhir = nama; }
+    // Semak juga nama pendek (e.g. "Elisya" untuk "Baju Kurung Elisya")
+    var namaPendek = nama.replace(/baju kurung /i, "").replace(/kurung /i, "").trim();
+    if (namaPendek !== nama) {
+      var idxPendek = historyLower.lastIndexOf(namaPendek.toLowerCase());
+      if (idxPendek > lastIdx) { lastIdx = idxPendek; bajuTerakhir = nama; }
+    }
+  });
   return bajuTerakhir;
 }
 
