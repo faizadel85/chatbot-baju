@@ -666,6 +666,7 @@ app.post("/webhook", async function(req, res) {
     } else {
       if (followUpQueue[phoneNumber].stage === "browsing") { followUpQueue[phoneNumber].lastReply = Date.now(); followUpQueue[phoneNumber].done = false; }
       else if (followUpQueue[phoneNumber].stage === "ordered") { followUpQueue[phoneNumber].lastReply = Date.now(); }
+      else if (followUpQueue[phoneNumber].stage === "paid") { followUpQueue[phoneNumber].done = true; } // Kekal done, jangan follow up lagi
     }
 
     sesi[phoneNumber].push({ role: "user", content: text });
