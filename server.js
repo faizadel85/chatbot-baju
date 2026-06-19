@@ -160,7 +160,6 @@ function getBajuTerakhir(history, products) {
   uniqueNama.forEach(function(nama) {
     var idx = historyLower.lastIndexOf(nama.toLowerCase());
     if (idx > lastIdx) { lastIdx = idx; bajuTerakhir = nama; }
-    // Semak juga nama pendek (e.g. "Elisya" untuk "Baju Kurung Elisya")
     var namaPendek = nama.replace(/baju kurung /i, "").replace(/kurung /i, "").trim();
     if (namaPendek !== nama) {
       var idxPendek = historyLower.lastIndexOf(namaPendek.toLowerCase());
@@ -180,11 +179,28 @@ function sanitizeJawapan(text) {
   return text.trim();
 }
 
-async function callClaude(systemPrompt, messages, maxTokens) {
+// ===== CALL CLAUDE DENGAN PROMPT CACHING =====
+async function callClaude(staticPrompt, dynamicPrompt, messages, maxTokens) {
   var cuba = 0;
   while (cuba < 3) {
     try {
-      var response = await claude.messages.create({ model: "claude-sonnet-4-5", max_tokens: maxTokens || 500, temperature: 0, system: systemPrompt, messages: messages });
+      // Kalau tiada dynamicPrompt (call lama), guna cara lama
+      if (!dynamicPrompt) {
+        var response = await claude.messages.create({
+          model: "claude-sonnet-4-5", max_tokens: maxTokens || 500, temperature: 0,
+          system: staticPrompt, messages: messages
+        });
+        return response.content[0].text;
+      }
+      // Guna prompt caching — pisah static dan dynamic
+      var response = await claude.messages.create({
+        model: "claude-sonnet-4-5", max_tokens: maxTokens || 500, temperature: 0,
+        system: [
+          { type: "text", text: staticPrompt, cache_control: { type: "ephemeral" } },
+          { type: "text", text: dynamicPrompt }
+        ],
+        messages: messages
+      });
       return response.content[0].text;
     } catch (err) { cuba++; if (cuba === 3) throw err; await new Promise(function(r) { setTimeout(r, 2000); }); }
   }
@@ -197,7 +213,7 @@ async function claudeDecideGambar(jawapan, history, products, katalog, sizeChart
     products.forEach(function(p) { if (p && p.Nama && p.Warna && p.Gambar_URL) senaraiGambar.push("WARNA:" + p.Nama + " " + p.Warna + "|" + p.Gambar_URL); });
     sizeChartImages.forEach(function(s) { if (s && s.Nama && s.Gambar_URL) senaraiGambar.push("SIZECHART:" + s.Nama + "|" + s.Gambar_URL); });
     var decisionPrompt = "Kamu adalah sistem yang memutuskan gambar mana perlu dihantar kepada buyer.\n\nJawapan bot kepada buyer:\n" + jawapan + "\n\nHistory conversation:\n" + history.slice(-1000).replace(/[\uD800-\uDFFF]/g, "") + "\n\nSenarai gambar yang ada (format JENIS:NAMA|URL):\n" + senaraiGambar.join("\n") + "\n\nTUGASAN: Berdasarkan jawapan bot dan context conversation, tentukan gambar mana perlu dihantar.\nPERATURAN:\n- Kalau bot propose BEBERAPA baju berbeza → hantar KATALOG setiap baju yang disebut\n- Kalau bot tunjuk warna specific yang buyer dah pilih → hantar WARNA yang berkaitan SAHAJA\n- Kalau bot senaraikan warna sebagai pilihan (buyer belum pilih warna) → hantar KATALOG baju tu SAHAJA, JANGAN hantar semua warna\n- Kalau bot tanya saiz/ukuran → hantar SIZECHART baju berkaitan\n- Kalau bot sekadar jawab soalan biasa tanpa tunjuk produk → jawab TIADA\n- Kalau dalam order flow (tanya alamat, payment, QR dll) → jawab TIADA\n- Kalau buyer dah close/tolak/terima kasih → jawab TIADA\n\nJawab HANYA dalam format ini:\nHANTAR:URL_GAMBAR\natau\nTIADA\n\nJANGAN tulis apa-apa lain.";
-    var decision = await callClaude(decisionPrompt, [{ role: "user", content: "Tentukan gambar." }], 300);
+    var decision = await callClaude(decisionPrompt, null, [{ role: "user", content: "Tentukan gambar." }], 300);
     decision = decision.trim();
     if (decision === "TIADA" || !decision.includes("HANTAR:")) return [];
     var urls = [];
@@ -211,7 +227,7 @@ async function extractOrderDetails(history, products) {
     var uniqueNama = [];
     products.forEach(function(p) { if (!p || !p.Nama) return; if (uniqueNama.indexOf(p.Nama) === -1) uniqueNama.push(p.Nama); });
     var extractPrompt = "Dari conversation ini, extract maklumat order yang buyer pilih.\n\nHistory:\n" + history.slice(-2000).replace(/[\uD800-\uDFFF]/g, "") + "\n\nProduk yang ada: " + uniqueNama.join(", ") + "\n\nJawab HANYA dalam format ini (kosongkan kalau tak ada info):\nPRODUK:[nama produk]\nSAIZ:[saiz pilihan]\nWARNA:[warna pilihan]\nKAEDAH:[COD atau Bank Transfer atau QR Pay]\n\nJANGAN tulis apa-apa lain.";
-    var result = await callClaude(extractPrompt, [{ role: "user", content: "Extract order details." }], 150);
+    var result = await callClaude(extractPrompt, null, [{ role: "user", content: "Extract order details." }], 150);
     var produk = ""; var saiz = ""; var warna = ""; var kaedah = "";
     result.split("\n").forEach(function(line) {
       line = line.trim();
@@ -234,7 +250,6 @@ var MSG_STAGE3B_COD = "Salam Cik 🌷\n\nOrder COD Cik masih available ya buat m
 
 setInterval(async function() {
   var now = Date.now();
-  // ===== HAD CONCURRENT CLAUDE CALLS UNTUK FOLLOW UP =====
   var claudeCallCount = 0;
   var MAX_CLAUDE_CALLS = 5;
 
@@ -244,58 +259,42 @@ setInterval(async function() {
     if (global.stopList && global.stopList[phone]) continue;
 
     if (q.stage === "browsing") {
-
-      // ===== STAGE 1: 1 jam — SEMUA buyer =====
       if (!q.sent1 && !q.hasJanji && (now - q.lastReply) >= 60 * 60 * 1000) {
         await hantarMesej(phone, MSG_STAGE1);
         followUpQueue[phone].sent1 = true;
         console.log("Stage 1 sent to " + phone);
       }
-
-      // ===== STAGE 0a/1c: 3 jam (ada history) atau 4 jam (tiada history) =====
       var tempoh2 = q.hasHistory ? 3 * 60 * 60 * 1000 : 4 * 60 * 60 * 1000;
       if (q.sent1 && !q.sent0a && (now - q.lastReply) >= tempoh2) {
         if (q.hasHistory && q.lastBotReply) {
-          // Ada history — Claude generate based on context
-          // ===== CHECK HAD SEBELUM CALL CLAUDE =====
-          if (claudeCallCount >= MAX_CLAUDE_CALLS) {
-            console.log("Had 0a reached — skip " + phone + " ke interval seterusnya");
-            continue;
-          }
+          if (claudeCallCount >= MAX_CLAUDE_CALLS) { console.log("Had 0a reached — skip " + phone); continue; }
           claudeCallCount++;
           try {
             var followUp0a = await callClaude(
               "Tulis follow up WhatsApp mesra Bahasa Malaysia berdasarkan context conversation. 2-3 ayat pendek. Panggil Cik. Jangan sebut harga. Guna info dari context untuk buat mesej relevan. Teks biasa sahaja.",
+              null,
               [{ role: "user", content: "Context conversation terakhir: '" + q.lastBotReply + "'. Tulis follow up ringkas untuk encourage buyer proceed." }], 150);
             await hantarMesej(phone, followUp0a);
-            console.log("Stage 0a (context) sent to " + phone + " [call " + claudeCallCount + "/" + MAX_CLAUDE_CALLS + "]");
+            console.log("Stage 0a sent to " + phone + " [call " + claudeCallCount + "/" + MAX_CLAUDE_CALLS + "]");
           } catch (err) { console.error("Error stage 0a:", err.message); }
         } else {
-          // Tiada history — hantar MSG_STAGE1 sekali lagi (no Claude call)
           await hantarMesej(phone, MSG_STAGE1);
-          console.log("Stage 1c (generic) sent to " + phone);
+          console.log("Stage 1c sent to " + phone);
         }
         followUpQueue[phone].sent0a = true;
       }
-
-      // ===== STAGE 2: 24 jam =====
       if (q.sent0a && !q.sent2 && (now - q.lastReply) >= 24 * 60 * 60 * 1000) {
         await hantarMesej(phone, MSG_STAGE2);
-        followUpQueue[phone].sent2 = true;
-        followUpQueue[phone].done = true;
+        followUpQueue[phone].sent2 = true; followUpQueue[phone].done = true;
         console.log("Stage 2 sent to " + phone);
       }
-
-      // ===== STAGE 1b: Ada janji — 3 jam selepas janji =====
       if (q.hasJanji && !q.sent1b && q.janjiAt && (now - q.janjiAt) >= 3 * 60 * 60 * 1000) {
-        if (claudeCallCount >= MAX_CLAUDE_CALLS) {
-          console.log("Had 1b reached — skip " + phone + " ke interval seterusnya");
-          continue;
-        }
+        if (claudeCallCount >= MAX_CLAUDE_CALLS) { console.log("Had 1b reached — skip " + phone); continue; }
         claudeCallCount++;
         try {
           var followUp1b = await callClaude(
             "Tulis follow up WhatsApp mesra Bahasa Malaysia. 2-3 ayat pendek. Panggil Cik. Jangan sebut harga. Teks biasa sahaja.",
+            null,
             [{ role: "user", content: "Buyer kata: '" + q.lastContext + "'. Tulis follow up." }], 150);
           await hantarMesej(phone, followUp1b);
           followUpQueue[phone].sent1b = true;
@@ -338,8 +337,7 @@ setInterval(async function() {
         }
         var isCOD3b = q.kaedah && q.kaedah.toLowerCase().includes("cod");
         await hantarMesej(phone, isCOD3b ? MSG_STAGE3B_COD : MSG_STAGE3B);
-        followUpQueue[phone].sent3b = true;
-        followUpQueue[phone].done = true;
+        followUpQueue[phone].sent3b = true; followUpQueue[phone].done = true;
         console.log("Stage 3b sent to " + phone + (isCOD3b ? " (COD)" : ""));
       }
     }
@@ -402,6 +400,7 @@ async function getSheetData(sheetName) {
   } catch (err) { console.error("Sheet error:", err); return []; }
 }
 
+// ===== BUAT SYSTEM PROMPT — PISAH STATIC DAN DYNAMIC =====
 function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamOrderFlow, tarikhSekarang, promoAktif) {
   var senaraiProduk = products.map(function(p) {
     if (!p || !p.Nama) return "";
@@ -435,13 +434,6 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     detailText += p.Nama + " | Material: " + p.Material + " | Cutting: " + p.Cutting + " | Feature: " + p.Feature + " | Sesuai untuk: " + p.Sesuai_Untuk + "\n";
   });
 
-  var tarikhText = "";
-  if (tarikhSekarang) tarikhText = "\nTARIKH SEKARANG: " + tarikhSekarang + "\nGuna tarikh ini untuk kira anggaran sampai bila buyer tanya.\n";
-  var konteksText = "";
-  if (bajuKonteks) konteksText = "\nKONTEKS PENTING: Buyer ini sedang bertanya tentang " + bajuKonteks + ". Fokuskan jawapan pada baju ini sahaja melainkan buyer secara explicit minta tengok baju lain.\n";
-  var orderFlowText = "";
-  if (dalamOrderFlow) orderFlowText = "\nSTATUS ORDER: Buyer sudah memilih baju dan sedang dalam proses order. JANGAN cadang atau propose baju lain. Bila buyer tanya tentang material atau ciri-ciri baju — jawab info baju yang dipilih sahaja. Hanya propose baju lain kalau buyer kata nak tukar baju atau tak jadi beli.\n";
-
   var promoText = "";
   if (promoAktif && promoAktif.length > 0) {
     promoText = "\nPROMO SEMASA:\n";
@@ -464,12 +456,13 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     promoText += "Sebut promo bila buyer hampir nak beli atau tanya harga. Gunakan sebagai urgency untuk close.\n";
   }
 
-  return "Kamu adalah pembantu jualan kedai baju ADEL Adyana Elegance. Jawab dalam Bahasa Malaysia Baku yang ringkas, mesra dan profesional.\n" +
+  // ===== STATIC PROMPT — akan di-cache =====
+  var staticPrompt = "Kamu adalah pembantu jualan kedai baju ADEL Adyana Elegance. Jawab dalam Bahasa Malaysia Baku yang ringkas, mesra dan profesional.\n" +
     "PENTING: Panggil pelanggan sebagai Cik sahaja.\n" +
     "BAHASA: Gunakan HANYA Bahasa Malaysia. DILARANG guna perkataan Indonesia seperti cocok, oke, yuk, dong, sih, deh, banget, dikonfirmasi, konfirmasi.\n" +
     "Guna perkataan Malaysia: 'disahkan' bukan 'dikonfirmasi', 'sesuai' bukan 'cocok', 'baik' bukan 'oke'.\n" +
     "GAYA: Ayat pendek, mudah faham, profesional. Maksimum 3-4 ayat per jawapan.\n\n" +
-    tarikhText + promoText + konteksText + orderFlowText +
+    promoText +
     "SALES FLOW — BILA LEAD MASUK SPECIFIC DESIGN:\n" +
     "1. ACKNOWLEDGE MINAT — Puji pilihan buyer, jangan reply generic. Contoh: 'Cantik pilihan Cik! [Nama Design] memang antara bestseller kami'\n" +
     "2. JANGAN sebut harga dalam introduction — fokus tanya warna dan saiz dulu\n" +
@@ -570,6 +563,13 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "  2. SALAH SAIZ: Bila buyer minta tukar saiz — jawab mesra dan inform admin akan dimaklumkan. Contoh: 'Baik Cik, saya sudah maklumkan kepada admin kami. Admin akan hubungi Cik segera untuk bantu proses penukaran saiz 😊'\n" +
     "  3. TIADA pertukaran untuk sebab lain selain defect atau salah saiz.\n" +
     "  4. JANGAN minta buyer hubungi admin sendiri — admin yang akan hubungi buyer.";
+
+  // ===== DYNAMIC PROMPT — tidak di-cache (tarikh + konteks buyer) =====
+  var dynamicPrompt = "TARIKH SEKARANG: " + tarikhSekarang + "\nGuna tarikh ini untuk kira anggaran sampai bila buyer tanya.\n";
+  if (bajuKonteks) dynamicPrompt += "\nKONTEKS PENTING: Buyer ini sedang bertanya tentang " + bajuKonteks + ". Fokuskan jawapan pada baju ini sahaja melainkan buyer secara explicit minta tengok baju lain.\n";
+  if (dalamOrderFlow) dynamicPrompt += "\nSTATUS ORDER: Buyer sudah memilih baju dan sedang dalam proses order. JANGAN cadang atau propose baju lain. Bila buyer tanya tentang material atau ciri-ciri baju — jawab info baju yang dipilih sahaja. Hanya propose baju lain kalau buyer kata nak tukar baju atau tak jadi beli.\n";
+
+  return { staticPrompt: staticPrompt, dynamicPrompt: dynamicPrompt };
 }
 
 app.get("/", function(req, res) { res.send("Bot ADEL Adyana OK"); });
@@ -666,7 +666,7 @@ app.post("/webhook", async function(req, res) {
     } else {
       if (followUpQueue[phoneNumber].stage === "browsing") { followUpQueue[phoneNumber].lastReply = Date.now(); followUpQueue[phoneNumber].done = false; }
       else if (followUpQueue[phoneNumber].stage === "ordered") { followUpQueue[phoneNumber].lastReply = Date.now(); }
-      else if (followUpQueue[phoneNumber].stage === "paid") { followUpQueue[phoneNumber].done = true; } // Kekal done, jangan follow up lagi
+      else if (followUpQueue[phoneNumber].stage === "paid") { followUpQueue[phoneNumber].done = true; }
     }
 
     sesi[phoneNumber].push({ role: "user", content: text });
@@ -695,7 +695,11 @@ app.post("/webhook", async function(req, res) {
     var historyLower = history.toLowerCase();
     var dalamOrderFlow = historyLower.includes("postage") || historyLower.includes("total") || historyLower.includes("bank transfer") || historyLower.includes("cod") || historyLower.includes("nak beli") || historyLower.includes("order");
     var tarikhSekarang = new Date().toLocaleDateString("ms-MY", { timeZone: "Asia/Kuala_Lumpur", weekday: "long", year: "numeric", month: "long", day: "numeric" });
-    var systemPrompt = buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamOrderFlow, tarikhSekarang, promoAktif);
+
+    // ===== BUAT PROMPT — PISAH STATIC DAN DYNAMIC =====
+    var prompts = buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamOrderFlow, tarikhSekarang, promoAktif);
+    var staticPrompt = prompts.staticPrompt;
+    var dynamicPrompt = prompts.dynamicPrompt;
 
     var kataJanji = ["kejap","sat","jap","sekejap","nanti","later","dengan anak","dengan suami","dengan isteri","dengan husband","dengan wife","dengan family","dengan mak","dengan ayah","balik rumah","balik kerja","petang","malam","esok","insyaallah","mlm","mlm nanti","malam nanti","petang nanti","esok pagi","kejap lagi","sekejap lagi","nanti ye","nanti saya"];
     if (kataJanji.some(function(k) { return text.toLowerCase().includes(k); })) {
@@ -708,7 +712,7 @@ app.post("/webhook", async function(req, res) {
     if (kataGambarGift.some(function(k) { return textLower.includes(k); })) {
       var promoGambar = promoAktif.find(function(p) { return p.Gambar_Gift_URL && p.Gambar_Gift_URL.trim(); });
       if (promoGambar) {
-        var giftJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
+        var giftJawapan = await callClaude(staticPrompt, dynamicPrompt, sesi[phoneNumber], 200);
         giftJawapan = sanitizeJawapan(giftJawapan);
         sesi[phoneNumber].push({ role: "assistant", content: giftJawapan });
         await simpanSesi(phoneNumber, sesi[phoneNumber]);
@@ -729,7 +733,7 @@ app.post("/webhook", async function(req, res) {
         if (warnaSkrg && g.Warna) return namaMatch && g.Warna.toLowerCase() === warnaSkrg.toLowerCase();
         return namaMatch;
       });
-      var grJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
+      var grJawapan = await callClaude(staticPrompt, dynamicPrompt, sesi[phoneNumber], 200);
       grJawapan = sanitizeJawapan(grJawapan);
       sesi[phoneNumber].push({ role: "assistant", content: grJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
@@ -742,7 +746,7 @@ app.post("/webhook", async function(req, res) {
     if (kataSizeChart.some(function(k) { return textLower.includes(k); })) {
       var bajuSC = null; var lastIdxSC = -1;
       sizeChartImages.forEach(function(s) { if (!s || !s.Nama) return; var idx = history.toLowerCase().lastIndexOf(s.Nama.toLowerCase()); if (idx > lastIdxSC) { lastIdxSC = idx; bajuSC = s; } });
-      var scJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
+      var scJawapan = await callClaude(staticPrompt, dynamicPrompt, sesi[phoneNumber], 200);
       scJawapan = sanitizeJawapan(scJawapan);
       sesi[phoneNumber].push({ role: "assistant", content: scJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
@@ -755,7 +759,7 @@ app.post("/webhook", async function(req, res) {
     var kataKatalog = ["tengok gambar semua","tunjuk semua design","boleh tunjuk koleksi","tengok koleksi","nak tengok semua koleksi","semua design","semua baju","koleksi baju","gambar koleksi","semua koleksi","tunjuk koleksi","gambar semua koleksi","tengok koleksi semua"];
     if (kataKatalog.some(function(k) { return textLower.includes(k); })) {
       var bajuHistoryK = getBajuTerakhir(history, products);
-      var katJawapan = await callClaude(systemPrompt, sesi[phoneNumber], 200);
+      var katJawapan = await callClaude(staticPrompt, dynamicPrompt, sesi[phoneNumber], 200);
       katJawapan = sanitizeJawapan(katJawapan);
       sesi[phoneNumber].push({ role: "assistant", content: katJawapan });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
@@ -769,7 +773,7 @@ app.post("/webhook", async function(req, res) {
       return res.sendStatus(200);
     }
 
-    var jawapan = await callClaude(systemPrompt, sesi[phoneNumber], 500);
+    var jawapan = await callClaude(staticPrompt, dynamicPrompt, sesi[phoneNumber], dalamOrderFlow ? 500 : 300);
     jawapan = sanitizeJawapan(jawapan);
 
     if (jawapan.includes("ORDER_COD_CONFIRMED")) {
