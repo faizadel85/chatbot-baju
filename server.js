@@ -708,6 +708,19 @@ app.post("/webhook", async function(req, res) {
       else if (followUpQueue[phoneNumber].stage === "browsing") { followUpQueue[phoneNumber].hasJanji = true; followUpQueue[phoneNumber].lastContext = text; followUpQueue[phoneNumber].janjiAt = Date.now(); }
     }
 
+    // ===== DETECT NAMA PENAMA SELEPAS BAYAR =====
+    if (followUpQueue[phoneNumber] && followUpQueue[phoneNumber].stage === "ordered") {
+      var perkataanText = text.trim().split(/\s+/);
+      var adaNamaShort = perkataanText.length >= 2 && perkataanText.length <= 6;
+      var adaKeywordPenama = ["nama penama","nama pemilik","nama akaun","atas nama","a/n","an "].some(function(k) { return textLower.includes(k); });
+      if (adaNamaShort || adaKeywordPenama) {
+        // Simpan nama penama, reset timer untuk tunggu resit
+        followUpQueue[phoneNumber].penamaakaun = text.trim();
+        followUpQueue[phoneNumber].lastReply = Date.now(); // Reset timer — bagi masa 3 jam untuk buyer hantar resit
+        console.log("Nama penama diterima, tunggu resit: " + text.trim());
+      }
+    }
+
     var kataGambarGift = ["gambar brooch","tgk brooch","tengok brooch","brooch mcm mana","brooch macam mana","gift tu","free gift tu","hadiah tu"];
     if (kataGambarGift.some(function(k) { return textLower.includes(k); })) {
       var promoGambar = promoAktif.find(function(p) { return p.Gambar_Gift_URL && p.Gambar_Gift_URL.trim(); });
@@ -782,11 +795,24 @@ app.post("/webhook", async function(req, res) {
       var orderDetails = await extractOrderDetails(history, products);
       followUpQueue[phoneNumber].produk = orderDetails.produk; followUpQueue[phoneNumber].saiz = orderDetails.saiz; followUpQueue[phoneNumber].warna = orderDetails.warna; followUpQueue[phoneNumber].kaedah = "COD";
     }
-    if (jawapan.includes("ORDER_RECEIPT_RECEIVED")) { followUpQueue[phoneNumber].stage = "paid"; followUpQueue[phoneNumber].done = true; jawapan = jawapan.replace("ORDER_RECEIPT_RECEIVED", "").trim(); }
+    if (jawapan.includes("ORDER_RECEIPT_RECEIVED")) {
+      followUpQueue[phoneNumber].stage = "paid"; followUpQueue[phoneNumber].done = true;
+      // Guna penamaakaun yang dah disimpan dari nama penama sebelum ni
+      if (followUpQueue[phoneNumber].penamaakaun && !jawapan.includes("ORDER_CONFIRMED:")) {
+        jawapan = jawapan.replace("ORDER_RECEIPT_RECEIVED", "").trim();
+        // Inject penamaakaun ke dalam conversation supaya Claude tahu
+        if (!sesi[phoneNumber]) sesi[phoneNumber] = [];
+        sesi[phoneNumber].push({ role: "user", content: "[SISTEM: Nama penama akaun yang diterima sebelum ini: " + followUpQueue[phoneNumber].penamaakaun + "]" });
+      } else {
+        jawapan = jawapan.replace("ORDER_RECEIPT_RECEIVED", "").trim();
+      }
+    }
     console.log("Jawapan Claude:", jawapan);
     if (jawapan.includes("ORDER_CONFIRMED:")) {
       var orderData = jawapan.split("ORDER_CONFIRMED:")[1].split("|");
-      await simpanOrder({ nama: orderData[0]||"", noTel: orderData[1]||"", alamat: orderData[2]||"", poskod: orderData[3]||"", bandar: orderData[4]||"", negeri: orderData[5]||"", produk: orderData[6]||"", saiz: orderData[7]||"", warna: orderData[8]||"", harga: orderData[9]||"", postage: orderData[10]||"", total: orderData[11]||"", kaedahBayar: orderData[12]||"", penamaakaun: orderData[13]||"", nota: orderData[14]||"" });
+      // Guna penamaakaun dari followUpQueue kalau ORDER_CONFIRMED tak ada penama
+      var penamaakaun = orderData[13] || followUpQueue[phoneNumber].penamaakaun || "";
+      await simpanOrder({ nama: orderData[0]||"", noTel: orderData[1]||"", alamat: orderData[2]||"", poskod: orderData[3]||"", bandar: orderData[4]||"", negeri: orderData[5]||"", produk: orderData[6]||"", saiz: orderData[7]||"", warna: orderData[8]||"", harga: orderData[9]||"", postage: orderData[10]||"", total: orderData[11]||"", kaedahBayar: orderData[12]||"", penamaakaun: penamaakaun, nota: orderData[14]||"" });
       jawapan = jawapan.split("ORDER_CONFIRMED:")[0].trim();
       if (!jawapan) jawapan = "Terima kasih Cik! Order Cik telah berjaya disahkan. Kami akan proses segera 😊";
       followUpQueue[phoneNumber].stage = "paid"; followUpQueue[phoneNumber].done = true; followUpQueue[phoneNumber].sent3a = true; followUpQueue[phoneNumber].sent3b = true;
