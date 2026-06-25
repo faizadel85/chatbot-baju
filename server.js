@@ -241,7 +241,7 @@ async function extractOrderDetails(history, products) {
 }
 
 var followUpQueue = {};
-var MSG_STAGE1 = "Assalamualaikum 🫶🏻 Cik cari size dan warna apa ya?\n\nAtau nak saya bantu dapatkan size yg sesuai untuk Cik?";
+var MSG_STAGE1 = "Assalamualaikum 🫶🏻 Stok kami terhad ya Cik!\n\nCik cari size dan warna apa? Saya boleh semak availability untuk Cik sekarang 😊";
 var MSG_STAGE2 = "Assalamualaikum! Semoga Cik dalam keadaan baik & semoga urusan kita sama² dipermudahkan hari ini 😊\n\nCik ada tekan link iklan saya dari FB/IG. Saya sangat-sangat hargai respon Cik 💕\n\nCik tengah cari warna dan size apa ya? Ada apa boleh saya bantu?";
 var MSG_STAGE3A = "Salam Cik 😊\n\nSaya nak follow-up order Cik tadi ya. Untuk proceed packing, boleh send resit payment bila sempat 🙏\n\nStock design ni tengah laju keluar hari ni 😊";
 var MSG_STAGE3A_COD = "Salam Cik 😊\n\nSaya nak follow-up order COD Cik tadi ya. Order Cik masih dalam proses.\n\nBoleh Cik confirm alamat penghantaran untuk kami proses segera? 🙏";
@@ -454,6 +454,18 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
       if (p.Gambar_Gift_URL) promoText += "  (Gambar " + p.Gift + " boleh ditunjukkan bila buyer tanya — sistem akan hantar automatik)\n";
     });
     promoText += "Sebut promo bila buyer hampir nak beli atau tanya harga. Gunakan sebagai urgency untuk close.\n";
+    // Tambah urgency tarikh tamat promo
+    promoAktif.forEach(function(p) {
+      if (p.Tarikh_Tamat) {
+        try {
+          var tamat = new Date(p.Tarikh_Tamat);
+          var hariTinggal = Math.ceil((tamat - today) / (1000 * 60 * 60 * 24));
+          if (hariTinggal <= 3 && hariTinggal > 0) {
+            promoText += "URGENT: Promo " + p.Nama_Promo + " tamat dalam " + hariTinggal + " hari lagi! Guna sebagai urgency kuat.\n";
+          }
+        } catch(e) {}
+      }
+    });
   }
 
   // ===== STATIC PROMPT — akan di-cache =====
@@ -469,6 +481,7 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "3. TERUS CHECK SIZE — Jangan spam detail produk. Tanya: berat badan, ukuran dada (inchi), biasa pakai size apa\n" +
     "4. BUILD CONFIDENCE — Selepas suggest size, tambah reassurance. Contoh: 'Cutting design ni memang cantik jatuh dan selesa pakai'\n" +
     "5. SOFT CLOSE — Jangan tunggu lama. Contoh: 'Size Cik masih available. Kalau Cik nak saya boleh bantu lock siap-siap dulu'\n" +
+    "5b. URGENCY CLOSE — Bila buyer dah tahu saiz, sebut stok: 'Size [saiz] warna [warna] tinggal [stok] unit. Nak saya lockkan untuk Cik? 😊'\n" +
     "6. JANGAN spam semua warna bila buyer dah pilih design — tanya warna apa yang diminati\n" +
     "7. JANGAN explain technical panjang — buyer nak beli bukan belajar\n\n" +
     "PRODUK:\n" + senaraiProduk + "\n\n" +
@@ -549,6 +562,14 @@ function buatSystemPrompt(products, sizeChart, produkDetail, bajuKonteks, dalamO
     "- JANGAN tambah ayat perpisahan panjang — maksimum 1 ayat ringkas sahaja\n" +
     "- Bila buyer ucap terima kasih atau confirm baju dah sampai/diterima, lepas tu kata 'saya beli ya', 'saya ambil ya', 'in syaa Allah beli' — ini adalah akad pengesahan pembelian, BUKAN order baru. Jawab: 'Alhamdulillah, terima kasih Cik! Semoga baju memberi manfaat. Nanti kalau nak order lagi boleh whatsapp kami ya 😊'\n" +
     "- JANGAN tanya design/warna/saiz semula dalam situasi ini\n" +
+    "- URGENCY STOK: Bila buyer hampir nak beli atau tanya availability, WAJIB sebut stok semasa\n" +
+    "  Contoh: 'Size M warna Burgundy tinggal 3 unit je lagi Cik! Kalau nak saya boleh lock sekarang 😊'\n" +
+    "  Kalau stok bawah 5 unit — guna sebagai urgency kuat: 'Stok tinggal sikit je Cik, ramai yang tengah tanya size ni!'\n" +
+    "  Kalau stok 0 — beritahu habis dan cadang alternatif\n" +
+    "- SOCIAL PROOF: Bila buyer ragu-ragu atau lambat decide, sebut populariti produk\n" +
+    "  Contoh: 'Design ni memang laris Cik, ramai yang dah order minggu ni 😊'\n" +
+    "  Contoh: 'Warna ni trending sekarang, ramai customer pilih warna ni untuk majlis'\n" +
+    "  Guna natural — jangan sebut setiap mesej, hanya bila buyer nampak ragu\n" +
     "- Bila buyer kata 'tq', 'terima kasih', 'xperlu', 'takpe' selepas bot propose alternatif — buyer dah close, jawab ringkas dan JANGAN hantar gambar lagi\n" +
     "- Contoh jawapan close: 'Baik Cik, tiada masalah. Nanti bila ada koleksi baru kami akan maklumkan ya 😊'\n" +
     "- JANGAN propose lagi selepas buyer close conversation\n" +
