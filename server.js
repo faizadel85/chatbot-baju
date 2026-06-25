@@ -671,7 +671,7 @@ app.post("/webhook", async function(req, res) {
     var kataDefect = ["defect","cacat","rosak","koyak","lubang","jahitan longgar","salah saiz","salah size","tersilap saiz","tersilap size"];
     if (kataDefect.some(function(k) { return text.toLowerCase().includes(k); })) await hantarMesej("601123726341", "PERHATIAN - REQUEST PENUKARAN/DEFECT!\n\nNo Tel: " + phoneNumber + "\nMesej: " + text + "\n\nSila hubungi buyer segera!");
 
-    var kataTolak = ["tak nak","taknak","xnak","tak jadi","takjadi","tak minat","takminat","x minat","tidak berminat","tak berminat","cancel","batalkan","tak berkenan","tak perlu","takpe","ok takpe","xpe","dah ada","dah beli","mahal","tak mampu","budget tak cukup","lain kali","maybe later","next time","tak dulu","xperlu","x perlu","tak perlu hantar","xde tq","takde tq","no thanks","takpe tq","dah taknak","xnak dah"];
+    var kataTolak = ["tak nak","taknak","xnak","tak jadi","takjadi","tak minat","takminat","x minat","tidak berminat","tak berminat","cancel","batalkan","tak berkenan","tak perlu","takpe","ok takpe","xpe","dah ada","dah beli","mahal","tak mampu","budget tak cukup","lain kali","maybe later","next time","tak dulu","xperlu","x perlu","tak perlu hantar","xde tq","takde tq","no thanks","takpe tq","dah taknak","xnak dah","belum lagi","belum nak","belum ready","nnt lagi","nanti lagi","later lagi","belum decide","tgk dulu","tengok dulu","fikir dulu","pikir dulu","pk dulu","consider dulu"];
     if (kataTolak.some(function(k) { return text.toLowerCase().includes(k); })) { if (followUpQueue[phoneNumber]) { followUpQueue[phoneNumber].done = true; followUpQueue[phoneNumber].sent1 = true; followUpQueue[phoneNumber].sent2 = true; } }
 
     if (!sesi[phoneNumber]) { sesi[phoneNumber] = await loadSesi(phoneNumber); }
