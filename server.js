@@ -780,13 +780,19 @@ app.post("/webhook", async function(req, res) {
     if (kataSizeChart.some(function(k) { return textLower.includes(k); })) {
       var bajuSC = null; var lastIdxSC = -1;
       sizeChartImages.forEach(function(s) { if (!s || !s.Nama) return; var idx = history.toLowerCase().lastIndexOf(s.Nama.toLowerCase()); if (idx > lastIdxSC) { lastIdxSC = idx; bajuSC = s; } });
-      var scJawapan = await callClaude(staticPrompt, dynamicPrompt, sesi[phoneNumber], 200);
-      scJawapan = sanitizeJawapan(scJawapan);
-      sesi[phoneNumber].push({ role: "assistant", content: scJawapan });
+      var scMsg = "Ini size chart untuk Cik 😊";
+      if (bajuSC && bajuSC.Gambar_URL) {
+        await hantarGambar(phoneNumber, "Size chart " + bajuSC.Nama + " untuk Cik 😊", bajuSC.Gambar_URL);
+      } else {
+        for (var sc = 0; sc < sizeChartImages.length; sc++) {
+          if (sizeChartImages[sc] && sizeChartImages[sc].Gambar_URL) {
+            await hantarGambar(phoneNumber, "Size chart " + sizeChartImages[sc].Nama + " 😊", sizeChartImages[sc].Gambar_URL);
+            await new Promise(function(r) { setTimeout(r, 1000); });
+          }
+        }
+      }
+      sesi[phoneNumber].push({ role: "assistant", content: scMsg });
       await simpanSesi(phoneNumber, sesi[phoneNumber]);
-      if (bajuSC && bajuSC.Gambar_URL) { await hantarGambar(phoneNumber, "Size chart " + bajuSC.Nama + " untuk Cik 😊", bajuSC.Gambar_URL); }
-      else { for (var sc = 0; sc < sizeChartImages.length; sc++) { if (sizeChartImages[sc] && sizeChartImages[sc].Gambar_URL) { await hantarGambar(phoneNumber, "Size chart " + sizeChartImages[sc].Nama + " 😊", sizeChartImages[sc].Gambar_URL); await new Promise(function(r) { setTimeout(r, 1000); }); } } }
-      await hantarMesej(phoneNumber, scJawapan);
       return res.sendStatus(200);
     }
 
