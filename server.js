@@ -187,14 +187,14 @@ async function callClaude(staticPrompt, dynamicPrompt, messages, maxTokens) {
       // Kalau tiada dynamicPrompt (call lama), guna cara lama
       if (!dynamicPrompt) {
         var response = await claude.messages.create({
-          model: "claude-sonnet-4-5", max_tokens: maxTokens || 500, temperature: 0,
+          model: "claude-sonnet-5", max_tokens: maxTokens || 500, temperature: 0,
           system: staticPrompt, messages: messages
         });
         return response.content[0].text;
       }
       // Guna prompt caching — pisah static dan dynamic
       var response = await claude.messages.create({
-        model: "claude-sonnet-4-5", max_tokens: maxTokens || 500, temperature: 0,
+        model: "claude-sonnet-5", max_tokens: maxTokens || 500, temperature: 0,
         system: [
           { type: "text", text: staticPrompt, cache_control: { type: "ephemeral" } },
           { type: "text", text: dynamicPrompt }
@@ -612,7 +612,7 @@ app.post("/webhook", async function(req, res) {
       try {
         var qMediaData = await axios.get("https://api.wassenger.com/v1/messages/" + quotedMsgId + "/media", { headers: { Token: WASSENGER_TOKEN }, responseType: "arraybuffer" });
         var qBase64 = Buffer.from(qMediaData.data).toString("base64"); var qMediaType = qMediaData.headers["content-type"] || "image/jpeg";
-        var qVision = await claude.messages.create({ model: "claude-sonnet-4-5", max_tokens: 100, messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: qMediaType, data: qBase64 } }, { type: "text", text: "Gambar baju ini. Nyatakan nama baju dan warna yang tertera dalam gambar. Jawab dalam format: BAJU: [nama] | WARNA: [warna]. Kalau tak nampak, jawab TIADA." }] }] });
+        var qVision = await claude.messages.create({ model: "claude-sonnet-5", max_tokens: 100, messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: qMediaType, data: qBase64 } }, { type: "text", text: "Gambar baju ini. Nyatakan nama baju dan warna yang tertera dalam gambar. Jawab dalam format: BAJU: [nama] | WARNA: [warna]. Kalau tak nampak, jawab TIADA." }] }] });
         var qVisionText = qVision.content[0].text.trim();
         if (qVisionText !== "TIADA") quotedText = qVisionText;
       } catch (err) { console.error("Error quoted vision:", err.message); }
@@ -637,7 +637,7 @@ app.post("/webhook", async function(req, res) {
       try {
         var mediaData = await axios.get("https://api.wassenger.com/v1/messages/" + data.data.id + "/media", { headers: { Token: WASSENGER_TOKEN }, responseType: "arraybuffer" });
         var base64Image = Buffer.from(mediaData.data).toString("base64"); var mediaType = mediaData.headers["content-type"] || "image/jpeg";
-        var visionResponse = await claude.messages.create({ model: "claude-sonnet-4-5", max_tokens: 300, messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: mediaType, data: base64Image } }, { type: "text", text: "Ini gambar dari buyer. Kalau ada alamat penghantaran, extract dan tulis semula dalam teks biasa. Kalau ini resit pembayaran, tulis 'RESIT'. Kalau bukan alamat atau resit, tulis 'TIADA'." }] }] });
+        var visionResponse = await claude.messages.create({ model: "claude-sonnet-5", max_tokens: 300, messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: mediaType, data: base64Image } }, { type: "text", text: "Ini gambar dari buyer. Kalau ada alamat penghantaran, extract dan tulis semula dalam teks biasa. Kalau ini resit pembayaran, tulis 'RESIT'. Kalau bukan alamat atau resit, tulis 'TIADA'." }] }] });
         var extractedText = visionResponse.content[0].text.trim();
         if (extractedText === "TIADA") { return res.sendStatus(200); }
         else if (extractedText === "RESIT") {
